@@ -2,6 +2,14 @@
 
 Each entry names the version, the date, and the measured effect where one exists.
 
+## 2.1.2, 2026-10-04
+
+- Fixed: the linter now ends a sentence at `。`, `！`, and `？`. These marks
+  need no white space after them. Before this fix, `sentences()` joined a full
+  Chinese paragraph into one sentence, and the `PostToolUse` check reported a
+  false `sentence_over_limit` hit. One Chinese report of 303 lines went from
+  10 false hits to 0. English text gives the same result as before.
+
 ## 2.1.1, 2026-09-30
 
 - Changed: removed wording in the skill that broke the skill's own rules. The
