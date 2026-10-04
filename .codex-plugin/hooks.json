@@ -11,6 +11,12 @@
             "timeout": 5,
             "statusMessage": "Loading Simple English...",
             "additionalContextLimit": 0
+          },
+          {
+            "type": "command",
+            "command": "[ -n \"${PLUGIN_ROOT}\" ] && node \"${PLUGIN_ROOT}/src/hooks/language-layer.js\" || true",
+            "timeout": 5,
+            "additionalContextLimit": 0
           }
         ]
       }

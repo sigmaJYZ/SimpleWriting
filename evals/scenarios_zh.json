@@ -1,0 +1,42 @@
+[
+  {
+    "id": "readme-intro",
+    "type": "descriptive",
+    "prompt": "为命令行工具 sqlpipe 写 README 的简介部分（一到两段，大约 200 字）。sqlpipe 把 Postgres 表同步到 S3，保存为 Parquet 文件。只返回正文。"
+  },
+  {
+    "id": "getting-started",
+    "type": "procedural",
+    "prompt": "为命令行工具 sqlpipe 写一节“快速开始”文档：用 `curl -sSL https://get.sqlpipe.dev | sh` 安装，配置 sqlpipe.yaml，用 `sqlpipe run --config sqlpipe.yaml` 第一次运行。大约 250 字。只返回正文。"
+  },
+  {
+    "id": "troubleshooting",
+    "type": "procedural",
+    "prompt": "为命令行工具 sqlpipe 写一节“故障排查”文档，内容包括连接 Postgres 超时和 S3 权限错误。大约 250 字。只返回正文。"
+  },
+  {
+    "id": "error-message",
+    "type": "procedural",
+    "prompt": "写出 sqlpipe 在 S3 上传失败时打印的错误信息原文。失败原因是 AccessDenied：IAM 凭证缺少 s3:PutObject 权限。两到四行。只返回信息原文。"
+  },
+  {
+    "id": "incident-report",
+    "type": "descriptive",
+    "prompt": "写一份公开状态页上的故障报告：14:02 到 14:31 UTC 之间，12% 的 API 请求返回 HTTP 502，原因是一次部署去掉了缓存预热步骤；这次部署在 14:27 回滚。大约 170 字。只返回正文。"
+  },
+  {
+    "id": "release-notes",
+    "type": "descriptive",
+    "prompt": "为 sqlpipe v2.0 写发布说明：/v2/users 的 `name` 字段拆成了 `first_name` 和 `last_name`（不兼容的变更），新增 `--incremental` 参数，Parquet 写入快了 40%。大约 200 字。只返回正文。"
+  },
+  {
+    "id": "runbook-terse",
+    "type": "procedural",
+    "prompt": "把这条运维手册步骤改写得尽可能短：“在运行迁移之前，请确保备份已经存在。”只返回改写后的步骤。"
+  },
+  {
+    "id": "architecture",
+    "type": "descriptive",
+    "prompt": "写一段 sqlpipe 的架构概述（大约 220 字）：读取进程分批流式读取 Postgres 的行，转换器把每批数据转成 Parquet 行组，上传器用分段上传把对象写入 S3，并带重试。只返回正文。"
+  }
+]

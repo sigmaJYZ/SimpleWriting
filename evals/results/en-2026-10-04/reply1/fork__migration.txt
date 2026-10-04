@@ -1,0 +1,22 @@
+A backfill is a job that fills in a value for every existing row, in small batches, after you add the column. Your migration hangs because adding a NOT NULL column to a 20 GB table forces the database to give every row a value at once while it holds a lock that blocks other queries.
+
+The safe pattern has four steps. I assume Postgres here, so tell me if you use MySQL because the last step differs. First, add the column as nullable, which is fast and does not rewrite the table. Second, change the application so that new and updated rows write the column. Third, run the backfill in batches of a few thousand rows, with a short pause between batches, so that locks stay short and replicas keep up. Fourth, after no NULL rows remain, add the NOT NULL rule.
+
+```sql
+ALTER TABLE orders ADD COLUMN region text;
+
+-- repeat until it updates 0 rows
+UPDATE orders SET region = 'unknown'
+WHERE id IN (
+  SELECT id FROM orders WHERE region IS NULL LIMIT 5000
+);
+
+ALTER TABLE orders ADD CONSTRAINT region_not_null
+  CHECK (region IS NOT NULL) NOT VALID;
+ALTER TABLE orders VALIDATE CONSTRAINT region_not_null;
+ALTER TABLE orders ALTER COLUMN region SET NOT NULL;
+```
+
+The table name, column name, and fill value are examples, so replace them with your own. The NOT VALID constraint, then VALIDATE, lets Postgres 12 and later set NOT NULL without a long full-table lock. If every row can share one constant default, Postgres 11 and later can add the column with that default in one fast step, and no backfill is needed.
+
+Before you retry, find and cancel the hung migration, because it may still hold a lock that blocks other queries. You can find it in `pg_stat_activity` and stop it with `pg_cancel_backend(pid)`.

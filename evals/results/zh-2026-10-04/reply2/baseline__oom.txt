@@ -1,0 +1,41 @@
+**发生了什么**
+
+容器的内存使用量超过了 `resources.limits.memory`。Linux 内核的 cgroup OOM killer 会用 SIGKILL（退出码 137）杀掉该进程。kubelet 随后按 `restartPolicy` 重启容器。如果问题反复出现，就会进入 `CrashLoopBackOff`，重启间隔逐渐拉长。
+
+常见原因：
+1. **limit 设得太低**：低于应用正常工作时的内存需求。
+2. **内存泄漏**：内存随时间增长，最终触顶。
+3. **启动或流量峰值**：例如大批量加载数据、并发请求激增。
+4. **运行时不识别容器限制**：例如 JVM 堆设得比 limit 还大，或 Node 没设置 `--max-old-space-size`。
+5. **非堆内存没算进去**：线程栈、metaspace、native 内存、page cache、tmpfs（`emptyDir` 的 `medium: Memory` 也算入内存）。
+
+**先确认**
+
+```bash
+kubectl describe pod <pod> | grep -A5 "Last State"   # Reason: OOMKilled, Exit Code: 137
+kubectl top pod <pod> --containers                   # 当前用量
+kubectl get pod <pod> -o jsonpath='{.spec.containers[*].resources}'
+```
+
+要确认是哪个容器被杀（sidecar 也可能是元凶），可以用 `kubectl describe` 看各容器的 `Last State`。如果有 Prometheus，可以看 `container_memory_working_set_bytes` 的曲线。曲线持续上升说明泄漏，在启动时或某个时间点突然冲高说明是峰值。
+
+**该改什么**
+
+1. **先提高 limit 止血**。把 limit 调到实际峰值的 1.25 到 1.5 倍左右，并让 request 接近常态用量：
+   ```yaml
+   resources:
+     requests:
+       memory: "512Mi"
+     limits:
+       memory: "1Gi"
+   ```
+   内存是不可压缩资源，建议 request 和 limit 设得接近，这样调度更可预期，也不易成为被驱逐的对象。
+2. **让运行时和 limit 对齐**：
+   - JVM：用 `-XX:MaxRAMPercentage=70`，不要把 `-Xmx` 写成接近 limit 的值。
+   - Node：`--max-old-space-size` 设为 limit 的 75% 左右。
+   - Go：设置 `GOMEMLIMIT`，值为 limit 的 90% 左右。
+3. **如果内存持续增长，就修代码**：用 heap profile（pprof、heap dump、`memray` 等）定位泄漏。只加 limit 只会推迟 OOM。
+4. **削峰**：限制并发、分批处理、流式读取代替整体加载。
+5. **检查 `emptyDir`**：如果用了内存介质，要么设置 `sizeLimit`，要么改用磁盘。
+
+如果你能贴出 `kubectl describe pod` 的输出、当前的 resources 配置，以及应用的语言/运行时，我可以帮你判断具体是哪种情况，并给出更准确的数值。

@@ -1,0 +1,28 @@
+curl cannot build a trusted chain from the certificate that your internal API sends back to a certificate authority (CA, the party that signs certificates) in its trust store. This usually means the API uses a certificate signed by a private company CA, or the server does not send its intermediate certificate. A corporate proxy that re-signs HTTPS traffic causes the same error.
+
+First, find which case you have. Run this command and read the certificate chain it prints:
+
+```
+openssl s_client -connect internal-api.example.com:443 -showcerts </dev/null
+```
+
+Replace the host with your real host name. If the output ends with "unable to get local issuer certificate" and shows only one certificate, the server is missing its intermediate certificate. The fix is on the server: configure it to send the full chain (the leaf certificate followed by the intermediate certificates). If the chain looks complete but the issuer is your company CA, curl does not know that CA yet.
+
+For a private CA, get the CA certificate in PEM format from your platform or security team. Then tell curl to trust it for one request:
+
+```
+curl --cacert /path/to/company-ca.pem https://internal-api.example.com/health
+```
+
+To fix it for all tools on the machine, install the CA in the system store. On Debian or Ubuntu, including WSL2, run these commands:
+
+```
+sudo cp company-ca.pem /usr/local/share/ca-certificates/company-ca.crt
+sudo update-ca-certificates
+```
+
+The file must end in .crt for this to work. Other tools can need their own setting. For example, you set `CURL_CA_BUNDLE` for curl, `REQUESTS_CA_BUNDLE` for Python requests, and `NODE_EXTRA_CA_CERTS` for Node.
+
+Do not use `curl -k` or `--insecure` except for a quick test. It turns off certificate checks, so anyone on the network path can read or change your traffic.
+
+If you send me the output of the openssl command, I can tell you which case applies.

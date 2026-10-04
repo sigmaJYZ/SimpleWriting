@@ -1,0 +1,26 @@
+OOMKilled means the container used more memory than its limit, so the Linux kernel killed it and Kubernetes restarted it. The fix is to raise the memory limit, reduce what the application uses, or both, depending on what the cause is.
+
+First, confirm the cause and see the limit. Run these commands, and replace the pod name and namespace with yours:
+
+```
+kubectl describe pod <pod> -n <namespace>
+kubectl top pod <pod> -n <namespace> --containers
+```
+
+In the describe output, look for "Last State: Terminated" with "Reason: OOMKilled" and exit code 137. Also read the "Limits" and "Requests" values for memory. If `kubectl top` shows usage close to the limit just before each restart, the limit is too low for the real workload.
+
+Next, choose the change. If the application needs more memory in normal use, raise the limit in the container spec of your Deployment:
+
+```
+resources:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "1Gi"
+```
+
+Set the request near typical usage and the limit above the peak. If memory grows without stopping until the kill, the application has a leak (memory that is never released), and a higher limit only delays the restart. In that case, profile the application and fix the leak.
+
+Runtime settings also matter. A Java process needs a heap size below the container limit, for example `-XX:MaxRAMPercentage=75`, because the JVM also uses memory outside the heap. Node.js needs `--max-old-space-size` set below the limit. Other causes are a limit that is too small for a spike at startup, many threads or large caches, and a limit that is set on the wrong container in a pod with sidecars (helper containers).
+
+After you change the configuration, apply it and watch the restart count with `kubectl get pod -w`. If the pod still restarts, compare the new peak usage to the new limit and repeat.

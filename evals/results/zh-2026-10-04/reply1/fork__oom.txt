@@ -1,0 +1,28 @@
+Pod 一直重启，是因为容器使用的内存超过了它的内存限制（limit），Linux 内核的 OOM killer（内存不足时强制结束进程的机制）就结束了该进程。Kubernetes 看到容器退出，按重启策略重新启动它。内存再次涨过限制时，同样的事会重复，最后出现 CrashLoopBackOff（重启间隔越来越长）。
+
+先确认原因。运行下面的命令，如果 Last State 显示 `Reason: OOMKilled` 和 `Exit Code: 137`，就是内存超限。
+
+```bash
+kubectl describe pod <pod名> -n <命名空间>
+kubectl top pod <pod名> -n <命名空间> --containers
+```
+
+`kubectl top` 需要集群里装有 metrics-server。如果 pod 重启太快，来不及观察，可以用 Prometheus 查看 `container_memory_working_set_bytes` 的历史曲线。
+
+要改的东西取决于内存为什么涨。有两种常见情况。
+
+第一种是限制设得太低。应用正常运行就需要更多内存。这时你把 `resources.limits.memory` 调高，并让 `requests.memory` 接近真实用量。示例如下。
+
+```yaml
+resources:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "1Gi"
+```
+
+第二种是应用有内存泄漏，或者用量会无限增长。这时调高限制只能推迟重启。你必须修应用本身，例如排查无上限的缓存、一次读入过大的文件或查询结果、没有释放的连接和线程。
+
+如果是 Java、Node.js 或 Python 之类带运行时的应用，还要确认运行时知道容器的限制。例如 JVM 的堆（heap，对象占用的内存区）加上堆外内存，总和不能超过容器限制。你可以用 `-XX:MaxRAMPercentage=70` 让堆只占限制的 70%。Node.js 可以设置 `--max-old-space-size`，让它低于容器限制。
+
+如果你把 `kubectl describe` 的输出、应用语言和现有的 resources 配置发给我，我可以判断是限制太低还是有泄漏，并给出具体数值。

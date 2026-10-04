@@ -1,0 +1,13 @@
+A lag of 2 million is not bad or good by itself. It depends on how fast your consumers process messages and whether the number is still growing. Consumer lag (the count of messages written to a topic that your consumers have not yet read) only matters when you compare it to the processing rate.
+
+If your consumers handle 20,000 messages per second, 2 million messages is about 100 seconds of delay, which is often fine. If they handle 200 messages per second, the same lag is nearly three hours of delay. Divide the lag by the consumer rate to get the real delay.
+
+The trend matters more than the number. If the lag is climbing, your consumers are slower than your producers, and the delay will keep growing until you add capacity or the producers slow down. If the lag rose during a spike and is now falling, the system is catching up and you probably do not need to act.
+
+For users, the effect is stale data. Anything that depends on the consumed messages happens late. For example, an order confirmation email arrives hours after purchase, a search index shows old results, a balance or status page looks wrong, or a fraud check runs after the transaction is done. If the consumers only feed analytics or batch reports, users will likely not notice. If they feed user-facing features, they will.
+
+There is also a retention risk. If the lag grows past your topic retention period (for example 7 days), Kafka deletes messages before the consumers read them, and that data is lost for good. Check how close the oldest unread message is to that limit.
+
+To find the cause, check three things. First, make sure that the lag is spread across all partitions, because one stuck partition points to a slow or crashed consumer or a hot key. Second, look at whether consumers are rebalancing often, which stalls processing. Third, compare the time spent per message with a normal day, because a slow database or downstream API is a common cause. If the consumers are healthy but too slow, add consumers, up to the number of partitions.
+
+If you tell me the consumer rate, the lag trend, and what the topic feeds, I can give you a more specific answer.

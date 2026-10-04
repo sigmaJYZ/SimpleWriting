@@ -1,0 +1,3 @@
+sqlpipe is a command-line tool that copies Postgres tables to Amazon S3 as Parquet files. You point it at a database and a bucket, and it reads each table you choose and writes the rows as Parquet (a compact, column-based file format). Tools such as Athena, Spark, and DuckDB can then query the files directly.
+
+sqlpipe runs from a single command, so you can run it by hand or from a scheduler such as cron. Each run syncs the tables that you name and leaves the other tables unchanged. You do not need to write export scripts or manage intermediate files. The sections below explain how to install sqlpipe, set up a first sync, and read the configuration options.

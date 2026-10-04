@@ -1,0 +1,9 @@
+Yes, a token bucket fits this requirement well, and it is one of the most common ways to limit request rates.
+
+Picture a bucket that holds up to 100 tokens. Each request from a user removes one token. If the bucket is empty, the API rejects the request, usually with HTTP 429 (the "too many requests" status). Tokens drop back into the bucket at a steady rate. For 100 requests per minute, that rate is about 1.67 tokens per second. The bucket can never hold more than 100, so a user who stays idle cannot save up an unlimited burst.
+
+This design has three advantages for your case. A user can send a burst of up to 100 requests at once, then must slow to the refill rate, which is friendly to clients that send traffic in spikes. The state per user is small, just a token count and the time of the last refill, so you do not need to store a log of every request. It is also cheap to compute, because you add the tokens earned since the last request and then subtract one.
+
+There are two things to decide. First, the burst size and the refill rate are separate settings. If you set the capacity to 100 and the refill to 100 per minute, a user can send 100 requests in the first second and another 100 about a minute later, so up to 200 in a short window. If that is too much, use a smaller capacity, such as 20, with the same refill rate. Second, if your API runs on several servers, the bucket state must live in a shared store such as Redis, and the read-modify-write step must be atomic (it cannot be split by another request). A short Lua script in Redis is the usual way to do that.
+
+A sliding window counter is the main alternative. It enforces a strict "no more than 100 in any 60 seconds" rule with no bursts above that limit. Choose it only if a hard cap on every window matters more than allowing bursts. If the requirement is simply about average load per user, the token bucket is the better choice.

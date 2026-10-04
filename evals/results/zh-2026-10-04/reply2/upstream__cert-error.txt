@@ -1,0 +1,32 @@
+这个错误说明 curl 无法验证服务器证书的签发者。内部 API 通常用公司自己的根 CA（证书颁发机构）签发证书，而你机器的系统信任库里没有这个根 CA。
+
+常见原因有三种。第一，内部 CA 没有安装到系统信任库。第二，服务器没有发送完整的证书链，缺少中间证书。第三，公司代理对 HTTPS 流量做了解密，换上了它自己的证书。
+
+先用下面的命令看服务器实际发送了什么证书（把 `api.internal.example.com` 换成你的域名）：
+
+```bash
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+```
+
+如果输出里只有一张证书，而且最后一行是 `unable to verify the first certificate`，说明服务器缺少中间证书。这时请管理员在服务器上配置完整证书链。
+
+如果证书链完整，就是你的机器不信任这个根 CA。向 IT 或平台团队要根 CA 文件（`.crt` 或 `.pem`），然后有两种修法。
+
+只让 curl 信任它，不改系统：
+
+```bash
+curl --cacert /path/to/internal-ca.crt https://api.internal.example.com/
+```
+
+让整个系统信任它（Debian 或 Ubuntu，WSL2 也适用）：
+
+```bash
+sudo cp internal-ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+sudo update-ca-certificates
+```
+
+文件扩展名必须是 `.crt`，否则 `update-ca-certificates` 会忽略它。
+
+不要用 `curl -k` 或 `--insecure` 作为长期方案，因为它会关闭验证，让你容易受到中间人攻击（有人冒充服务器截获流量）。只在临时排查时用一次。
+
+如果你在 WSL2 里，而 Windows 侧已经信任了这个 CA，浏览器能打开但 curl 报错，这很正常。WSL2 有自己独立的信任库，所以要按上面的方法在 WSL2 里再装一次。

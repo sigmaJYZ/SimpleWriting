@@ -2,7 +2,7 @@
   "name": "simple-english",
   "displayName": "Simple English",
   "description": "Write plain, layman-readable English with the discipline of ASD-STE100 Simplified Technical English: short sentences, one word one meaning, active voice, condition before command, terms defined at first use.",
-  "version": "2.1.2",
+  "version": "2.1.1.2",
   "author": {
     "name": "AminBlg"
   },
@@ -24,6 +24,11 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/simple-english-activate.js\"",
             "timeout": 5,
             "statusMessage": "Loading Simple English..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/language-layer.js\"",
+            "timeout": 5
           }
         ]
       }
@@ -34,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/src/hooks/lint_hook.py\"",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/src/hooks/lint_hook_fork.py\"",
             "timeout": 10,
             "statusMessage": "Simple English: checking the file..."
           }
@@ -46,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/src/hooks/lint_hook.py\"",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/src/hooks/lint_hook_fork.py\"",
             "timeout": 10
           }
         ]

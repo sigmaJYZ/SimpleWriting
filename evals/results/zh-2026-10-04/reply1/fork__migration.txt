@@ -1,0 +1,51 @@
+回填（backfill）是指先加一个允许为空的新列，再分批给已有的行写入值，最后才加 NOT NULL 约束。迁移卡住，通常是因为一条 ALTER TABLE 想一次完成所有这些步骤。下面的命令按 PostgreSQL 写。如果你用的是 MySQL 或其他数据库，请告诉我。
+
+对一张 20 GB 的表，一步加 NOT NULL 列有两个风险。第一，数据库可能重写整张表，这要很长时间。第二，ALTER TABLE 需要表上的排他锁（其他读写都必须等待）。如果有长事务占着锁，ALTER 会排队，之后所有查询又排在 ALTER 后面，看起来就像整张表卡死了。
+
+你先做这件事：在数据库里查看 pg_stat_activity，确认谁持有锁、谁在等待。然后取消卡住的迁移，让业务恢复。
+
+```sql
+SELECT pid, state, wait_event_type, now() - xact_start AS age, left(query, 80)
+FROM pg_stat_activity
+WHERE datname = current_database() AND state <> 'idle'
+ORDER BY xact_start;
+
+SELECT pg_cancel_backend(<迁移的 pid>);
+```
+
+取消之后，把迁移拆成四步，每步单独执行。
+
+第一步，加一个允许为空的列。这一步只改元数据，几乎立即完成。执行前先设置 `SET lock_timeout = '3s';`，这样拿不到锁时会快速失败，不会堵住其他查询。
+
+```sql
+ALTER TABLE big_table ADD COLUMN new_col integer;
+```
+
+第二步，分批回填。每批几千到几万行，每批单独提交，批与批之间可以暂停几百毫秒。这样不会产生一个巨大的事务，也不会让复制延迟变大。
+
+```sql
+UPDATE big_table SET new_col = 0
+WHERE id IN (
+  SELECT id FROM big_table WHERE new_col IS NULL LIMIT 10000
+);
+```
+
+你重复执行这条语句，直到它影响 0 行。如果表上有主键，用主键范围分批会更快。
+
+第三步，先加一个未验证的检查约束，再验证它。验证时只持有较弱的锁，业务可以继续读写。
+
+```sql
+ALTER TABLE big_table ADD CONSTRAINT new_col_nn CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE big_table VALIDATE CONSTRAINT new_col_nn;
+```
+
+第四步，设置 NOT NULL 并删除检查约束。在 PostgreSQL 12 及以上版本，已验证的检查约束让这一步跳过全表扫描，所以很快。
+
+```sql
+ALTER TABLE big_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE big_table DROP CONSTRAINT new_col_nn;
+```
+
+还有一点要注意：在回填完成前，应用代码必须能处理新列为空的情况，并且必须在写入新行时就带上这个列的值。否则回填期间产生的新行会继续出现空值。
+
+如果新列有固定的默认值，在 PostgreSQL 11 及以上版本，`ADD COLUMN ... NOT NULL DEFAULT 0` 本身就不会重写表，可以一步完成。只有默认值是易变表达式（例如 random()）或者需要按行计算时，才必须回填。

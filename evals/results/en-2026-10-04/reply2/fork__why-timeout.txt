@@ -1,0 +1,7 @@
+Yes, the retry is safe if the endpoint is truly idempotent (repeating a request has the same effect as sending it once), but you must make sure that the idempotency works the way your script needs.
+
+A timeout does not tell you whether the server processed the request. The order may exist already when your script sends the second POST. If the server treats the repeat as the same request, it returns the first result and creates no second order. If the server has no way to tell the two requests apart, you get a duplicate order.
+
+POST is not idempotent by definition in HTTP, unlike PUT and DELETE. So "idempotent" for POST /v2/orders usually means that the API accepts an idempotency key (a unique ID that you send with the request). You must make sure that your script generates the key once per order and sends the same key on every retry. If the script creates a new key for each attempt, the server sees separate orders.
+
+Check the API documentation for the header or field name, for example `Idempotency-Key`. Also check how long the server remembers keys, because a retry after that period can create a duplicate. Last, limit the retries and add a delay between them, so a slow server does not receive a burst of repeated requests.

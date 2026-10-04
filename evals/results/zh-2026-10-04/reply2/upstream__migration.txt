@@ -1,0 +1,30 @@
+回填（backfill）是指给表里已有的行补上新列的值，分批执行，而不是在一条 ALTER 语句里一次完成。你的迁移卡住，多半是因为它想在 20 GB 的表上一次完成加列和填值，持有长时间的锁，也可能在等别的事务释放锁。
+
+先处理卡住的迁移。你需要找到它是在等锁，还是在重写整张表。在 Postgres 里可以查 `pg_stat_activity` 和 `pg_locks`，确认后用 `pg_cancel_backend(pid)` 取消迁移。如果是 MySQL，用 `SHOW PROCESSLIST`。取消前先确认这个 pid 确实是迁移会话，因为取消其他会话会影响线上业务。我不知道你用的是哪种数据库，下面的例子按 Postgres 写。
+
+正确的做法分四步，每步单独发布。第一步，加一个允许为空的列，不加 NOT NULL，这一步几乎瞬间完成。第二步，让应用代码对新写入的行写入这个列。第三步，分批回填旧行，每批几千到几万行，批与批之间短暂停顿，这样不会长时间占锁，也不会让主从延迟变大。第四步，回填完成后再加 NOT NULL 约束。
+
+```sql
+-- 第一步
+ALTER TABLE big_table ADD COLUMN new_col integer;
+
+-- 第三步，重复执行直到影响 0 行
+UPDATE big_table
+SET new_col = 0
+WHERE id IN (
+  SELECT id FROM big_table
+  WHERE new_col IS NULL
+  LIMIT 10000
+);
+
+-- 第四步，避免长时间全表锁
+ALTER TABLE big_table
+  ADD CONSTRAINT new_col_not_null CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE big_table VALIDATE CONSTRAINT new_col_not_null;
+ALTER TABLE big_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE big_table DROP CONSTRAINT new_col_not_null;
+```
+
+如果你用 Postgres 11 或更新版本，并且新列有一个固定的默认值，可以直接写 `ADD COLUMN new_col integer NOT NULL DEFAULT 0`。这个写法不会重写表，速度很快。只有当值需要按每行计算时，才必须走上面的回填流程。
+
+如果你告诉我数据库类型、版本，以及新列的值从哪里来，我可以帮你写出具体的迁移和批处理脚本。

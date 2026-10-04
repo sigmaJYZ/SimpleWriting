@@ -1,0 +1,7 @@
+The most likely cause is that your price keys in Redis have a time to live (TTL, the time before a key expires) of about 10 minutes, and the code that updates a price changes only the database. Redis keeps serving the old value until the key expires. I did not see your code, so this is an inference from the symptom. Check for a `SET` or `SETEX` call with a 600 second expiry on the read path, and check that the write path has no matching cache call.
+
+The fix is to make the write path update the cache. This is the cache-aside pattern (the app reads from Redis first and falls back to the database). After the database transaction commits, delete the key, for example `DEL price:{product_id}`. The next read misses, loads the new price from the database, and stores it again. You must delete after the commit, not before. If you delete first, a concurrent reader can reload the old row and cache it again for another 10 minutes.
+
+Keep a TTL as a safety net, but make it much shorter, for example 30 to 60 seconds. Then a missed invalidation, such as a manual database edit or a failed delete, fixes itself quickly. If prices change in bulk, you can also write the new value to Redis directly instead of deleting it, which avoids a burst of database reads when many keys expire together.
+
+If the stale price remains after you add the delete, look for other caches in the path. A CDN, an HTTP `Cache-Control` header, or an in-process cache in each app instance can each hold the old value on their own. Redis invalidation does not clear any of these.

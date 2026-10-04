@@ -1,0 +1,24 @@
+Pod 被 OOMKilled，是因为容器使用的内存超过了它的 `resources.limits.memory`，Linux 内核的 OOM killer（内存不足时强制结束进程的机制）就杀掉了容器进程。kubelet 看到容器退出后按重启策略重新拉起它，所以你看到的是不停重启。如果重启间隔越来越长，状态会变成 CrashLoopBackOff，这只是退避等待，根因仍然是内存。
+
+先确认是容器内存超限，而不是节点内存不足。运行下面的命令，在输出里找 `Last State: Terminated`、`Reason: OOMKilled` 和 `Exit Code: 137`。
+
+```bash
+kubectl describe pod <pod名> -n <命名空间>
+kubectl top pod <pod名> -n <命名空间> --containers
+```
+
+如果 `kubectl top` 显示内存接近 limit，就是容器超限。如果 describe 的 Events 里出现节点驱逐（Evicted）而不是容器 OOMKilled，问题在节点，要看节点的内存压力。
+
+接下来分两种情况处理。第一种是 limit 设得太小，应用正常运行就需要更多内存。这时你把 limit 调高，并让 request 接近真实用量，例如：
+
+```yaml
+resources:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "1Gi"
+```
+
+第二种是应用有内存泄漏，或者运行时没有按容器 limit 调整自己的内存上限。如果你调高 limit 后，内存仍然持续上涨直到再次被杀，就是这种情况。这时要修代码，或者设置运行时参数。例如 Java 可以用 `-XX:MaxRAMPercentage=75`，让堆大小跟随容器 limit。Node.js 可以设置 `--max-old-space-size`，让它低于 limit。Go 可以设置 `GOMEMLIMIT`。堆之外还有线程栈、元空间和缓冲区，所以运行时的上限必须明显低于容器 limit。
+
+如果你告诉我语言、当前的 limit 和 `kubectl top` 的数值，我可以给出更具体的数字。

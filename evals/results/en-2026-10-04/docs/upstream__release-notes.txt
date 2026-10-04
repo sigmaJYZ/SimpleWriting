@@ -1,0 +1,9 @@
+sqlpipe v2.0 has one breaking change, one new flag, and faster Parquet writes.
+
+Breaking change: the `name` field of the /v2/users endpoint is now two fields, `first_name` and `last_name`. The `name` field no longer exists. If your code reads `name`, update it to read both new fields. Requests that use `name` will fail after you upgrade.
+
+New flag: the `--incremental` flag makes sqlpipe copy only the rows that changed since the last run. Use it to shorten the run time of repeated jobs.
+
+Performance: Parquet writes are 40% faster. You do not need to change any configuration to get this gain.
+
+To upgrade, update your clients for the new user fields first. Then install v2.0.

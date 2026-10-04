@@ -1,0 +1,29 @@
+## Getting started
+
+This section shows how to install sqlpipe and run it for the first time.
+
+### Install sqlpipe
+
+Run this command in your terminal:
+
+```
+curl -sSL https://get.sqlpipe.dev | sh
+```
+
+Make sure that the installer finished without errors before you continue.
+
+### Configure sqlpipe
+
+Create a file named `sqlpipe.yaml` in your project directory. This file is the configuration for sqlpipe. It tells sqlpipe what to do when it runs. Save the file before you continue.
+
+### Run sqlpipe
+
+If the installation finished and `sqlpipe.yaml` is saved, run this command from the directory that contains the file:
+
+```
+sqlpipe run --config sqlpipe.yaml
+```
+
+The `--config` flag tells sqlpipe which configuration file to read.
+
+If the command fails, read the error message and correct `sqlpipe.yaml`. Then run the command again.

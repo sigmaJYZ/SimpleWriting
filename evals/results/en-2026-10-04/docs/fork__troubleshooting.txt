@@ -1,0 +1,21 @@
+## Troubleshooting
+
+### Connection timeouts to Postgres
+
+If sqlpipe stops with a timeout error, make sure that the Postgres host is reachable from your machine.
+
+1. Run `pg_isready -h <host> -p <port>`.
+2. If the command reports no response, make sure that a firewall or security group allows traffic on the Postgres port.
+3. Make sure that the host and port in the sqlpipe configuration are correct.
+4. If the database is slow to respond, increase the connection timeout in the sqlpipe configuration.
+
+A VPN (a private network tunnel) can block the connection. If you use a VPN, connect to it and run the command again.
+
+### S3 permission errors
+
+If sqlpipe reports "Access Denied" for S3, the credentials lack the required permission.
+
+1. Run `aws sts get-caller-identity` to see which identity sqlpipe uses.
+2. Make sure that the identity has `s3:GetObject`, `s3:PutObject`, and `s3:ListBucket` on the bucket.
+3. Make sure that the bucket name and Region in the sqlpipe configuration are correct.
+4. If the bucket uses encryption with a KMS key, grant the identity access to that key.

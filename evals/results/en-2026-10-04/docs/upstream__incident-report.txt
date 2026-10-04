@@ -1,0 +1,9 @@
+**Resolved: Elevated API errors**
+
+Between 14:02 and 14:31 UTC, about 12% of API requests failed with HTTP 502 errors.
+
+A deploy removed the cache warmup step. Without it, the cache started empty, and the backend could not handle the load. We reverted the deploy at 14:27 UTC. Error rates returned to normal by 14:31 UTC.
+
+No data was lost. If your client received a 502 error during this time, retry the request. It will now succeed.
+
+We will restore the warmup step and add a check to the deploy process. The check will block any change that removes the warmup step. We apologize for the disruption.

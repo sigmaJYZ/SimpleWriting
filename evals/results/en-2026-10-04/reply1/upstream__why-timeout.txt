@@ -1,0 +1,7 @@
+Yes, the retry is safe if the endpoint is truly idempotent, but a POST that creates orders is often not idempotent unless the server deduplicates requests.
+
+Idempotent (safe to repeat) means that sending the same request many times leaves the system in the same state as sending it once. A timeout does not tell you that the request failed. The server may have created the order and only the response was lost. If the endpoint is not idempotent, the retry then creates a second order.
+
+POST is not idempotent by default in HTTP, unlike PUT and DELETE. An endpoint becomes idempotent only when the server enforces it, usually with an idempotency key (a unique ID the client sends, such as in an `Idempotency-Key` header) or a client-supplied order ID that the server rejects or returns again on a repeat.
+
+So make sure that two things are true. First, the server documents or enforces deduplication for /v2/orders. Second, your script sends the same key or order ID on every retry, not a new one each time. If the script generates a fresh key per attempt, the retry is not safe, even if the endpoint supports idempotency.

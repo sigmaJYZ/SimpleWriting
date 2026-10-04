@@ -1,0 +1,9 @@
+The most likely cause is that your price update writes to the database but does not touch the Redis key, so readers keep getting the cached copy until its TTL (time to live, the expiry timer) runs out. A 10-minute delay suggests the TTL is about 600 seconds. I have not seen your code, so this is an inference from the symptom.
+
+The fix is to invalidate the cache on write. After the database transaction commits, delete the price key (for example `DEL price:{id}`), and the next read will reload the fresh value from the database. You can also write the new value to Redis at the same point. Delete is simpler and safer, because it avoids two writers racing to set different values.
+
+Delete the key after the commit, not before. If you delete first, a concurrent reader can reload the old row and re-cache it before your commit lands, which brings the stale price back for another full TTL. If prices change through more than one path (admin tools, batch imports, other services), each path must invalidate the key, or you must route them all through one function that does.
+
+Keep a TTL as a safety net, but shorten it to something like 30 to 60 seconds for prices. Then a missed invalidation causes a short delay, not 10 minutes. If the cache is also filled by a background job or a replica read, check that too, because a replica that lags behind the primary can re-cache an old value even after a correct delete.
+
+If you point me to the repo that holds the price code, I can find the exact write path and make the change.

@@ -1,0 +1,3 @@
+I can't give you the exact text, because I can't see the sqlpipe source here. The working directory `/tmp` is an empty git repository with no commits, and the shell tool is disabled, so I couldn't search for the message. Any wording I wrote would be invented, not what sqlpipe prints.
+
+To get the real text, search the sqlpipe source for the string `AccessDenied` or `PutObject`. You can also trigger the failure with a key that has no `s3:PutObject` permission and copy the output. If you give me the repository path, I will find the message and return it.

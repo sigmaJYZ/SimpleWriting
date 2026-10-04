@@ -1,0 +1,34 @@
+回填（backfill）是给表里已有的行批量填上新列的值。你的迁移卡住，很可能是因为一条 ALTER TABLE 想一次完成加列和 NOT NULL。下面的做法按 PostgreSQL 写。如果你用的是 MySQL 或别的数据库，命令会不同，请告诉我。
+
+加 NOT NULL 列时，数据库必须让每一行都有值。如果没有默认值，或者默认值每行不同，数据库就会重写整张 20 GB 的表。重写期间它持有排他锁（别的查询都要等），所以迁移卡住，线上查询也可能被堵住。
+
+你先取消卡住的迁移。先用 pg_stat_activity 找到它的 pid，再取消它。
+
+```sql
+SELECT pid, state, query FROM pg_stat_activity WHERE query ILIKE 'ALTER TABLE%';
+SELECT pg_cancel_backend(<pid>);
+```
+
+然后把迁移拆成四步，每一步都很快或不锁表。下面的表名 big_table、列名 new_col 和值 'x' 都是示例，你必须换成自己的。
+
+```sql
+-- 1. 加一个可以为空的列。这一步只改元数据，几乎立即完成。
+ALTER TABLE big_table ADD COLUMN new_col text;
+
+-- 2. 给新写入的行设默认值。常量默认值也不会重写表。
+ALTER TABLE big_table ALTER COLUMN new_col SET DEFAULT 'x';
+
+-- 3. 回填旧行。分批执行，每批 1 万行左右，直到更新 0 行为止。
+UPDATE big_table SET new_col = 'x'
+WHERE id IN (SELECT id FROM big_table WHERE new_col IS NULL LIMIT 10000);
+
+-- 4. 回填完成后，先加未验证的约束，再验证，最后设 NOT NULL。
+ALTER TABLE big_table ADD CONSTRAINT new_col_nn CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE big_table VALIDATE CONSTRAINT new_col_nn;
+ALTER TABLE big_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE big_table DROP CONSTRAINT new_col_nn;
+```
+
+第 3 步必须分批，因为一条 UPDATE 改整张表会长时间持有行锁，还会让表膨胀。每批之间可以短暂暂停，并确认 autovacuum 跟得上。第 4 步的 VALIDATE 只加轻量锁，所以不会堵住写入。在 PostgreSQL 12 及以上版本，SET NOT NULL 会直接使用已验证的约束，不再全表扫描。
+
+如果新列的值需要从别的列计算，把第 3 步的 'x' 换成对应的表达式即可。你可以把数据库类型、版本和列的默认值告诉我，我给出完全匹配的脚本。

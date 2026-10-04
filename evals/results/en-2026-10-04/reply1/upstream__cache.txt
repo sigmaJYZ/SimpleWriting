@@ -1,0 +1,9 @@
+The most likely cause is that your cache entries have a time-to-live (TTL, the time before a key expires) of 10 minutes, and nothing removes or updates the entry when a price changes. I have not seen your code, so this is an inference from the symptom. A reader gets the cached value until the key expires, and the maximum staleness matches the TTL.
+
+The fix is to invalidate the cache on write. After the database transaction that updates the price commits, delete the Redis key for that price, for example with `DEL price:<product_id>`. The next read misses the cache, loads the new price from the database, and stores it again. This pattern is called cache-aside (the application manages the cache itself).
+
+You must delete the key after the commit, not before. If you delete it before the commit, a concurrent reader can load the old price from the database and put it back in the cache. Even with the correct order, a rare race can leave an old value in the cache. A shorter TTL, such as 30 to 60 seconds, limits that damage, so keep it as a backstop.
+
+If many services or jobs write prices, make sure that all of them go through the same invalidation code. A bulk import or a direct SQL update that skips the delete will cause the same stale prices again. If you cannot cover every write path, publish a change event and let a consumer delete the keys.
+
+If you want, point me at the repository that holds this code. I can then find the exact read and write paths and make the change.

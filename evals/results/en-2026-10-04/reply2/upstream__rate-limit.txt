@@ -1,0 +1,9 @@
+A token bucket fits this limit well, and it is a common choice for per-user API limits.
+
+Picture a bucket that holds up to 100 tokens. Each user has their own bucket. Every request removes one token. If the bucket is empty, you reject the request, usually with HTTP 429 (Too Many Requests). Tokens return at a steady rate, here about 1.67 per second (100 per 60 seconds), and the bucket never holds more than 100. So a user who was quiet for a while has a full bucket and can send a burst of up to 100 requests at once. After that, they can send only as fast as the tokens refill.
+
+It fits for three reasons. First, it allows short bursts, which real clients produce. Second, it needs very little state, only a token count and a last-refill timestamp per user, so you can store it in Redis or in memory. Third, you do not need a timer to refill the bucket. You compute the refill on each request from the time that passed since the last one.
+
+There are two things to watch. The first is that a full bucket allows 100 requests in one instant, and a user can then add about 1.67 per second. This means a user can briefly exceed 100 in a single clock minute, for example 100 at 12:00:59 and about 2 more shortly after. If you need a hard cap of 100 in any 60-second window, use a sliding window instead. The second is that if you run several servers, the bucket must live in shared storage such as Redis. The read, refill, and decrement must happen as one atomic step (not splittable by another request), for example in a Lua script. Otherwise two servers can spend the same token.
+
+If you want to limit bursts, you can set the bucket size below 100 while keeping the refill rate at 100 per minute. For example, a size of 20 allows small bursts and keeps the long-run average at 100 per minute.

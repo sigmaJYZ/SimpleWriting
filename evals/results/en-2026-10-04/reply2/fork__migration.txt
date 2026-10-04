@@ -1,0 +1,31 @@
+A backfill is a job that fills in a value for every row that already exists in the table, usually in small batches, so that you can add the NOT NULL rule afterward without one huge locked operation. Your migration hangs because it tries to do the column change and the fill of 20 GB of rows in one step, while it holds a lock that blocks other queries on the table. It can also hang because it waits for a lock behind a long-running transaction.
+
+First, cancel the hung migration so that it stops blocking traffic. Then split the work into four steps. I assume Postgres here, and the steps differ a little for MySQL.
+
+1. Add the column as nullable, with no default or with a constant default on Postgres 11 or newer. This step is fast because it changes only the table metadata. Set `lock_timeout` (a limit on how long a statement waits for a lock) to a few seconds, so that the migration fails fast instead of blocking other queries.
+2. Deploy application code that writes the new column on every insert and update. Without this step, new rows keep arriving with NULL while you backfill.
+3. Run the backfill in batches of about 5,000 to 10,000 rows, and commit after each batch. Walk the primary key in ranges, and pause briefly between batches if replication lag or load grows.
+4. Add the NOT NULL rule after no NULL rows remain.
+
+For step 3, a batch looks like this:
+
+```sql
+UPDATE my_table
+SET new_col = <value>
+WHERE id >= :start AND id < :start + 10000
+  AND new_col IS NULL;
+```
+
+For step 4 on Postgres, a plain `SET NOT NULL` scans the whole table under a strong lock. This sequence avoids that long lock on version 12 and newer:
+
+```sql
+ALTER TABLE my_table
+  ADD CONSTRAINT new_col_not_null CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE my_table VALIDATE CONSTRAINT new_col_not_null;
+ALTER TABLE my_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE my_table DROP CONSTRAINT new_col_not_null;
+```
+
+The `VALIDATE` step scans the table but allows normal reads and writes while it runs. After that, `SET NOT NULL` can skip its own scan because the validated constraint already proves that no NULL values exist.
+
+If you tell me the database and version, and what value the column needs for old rows, I can write the exact migration and backfill script.

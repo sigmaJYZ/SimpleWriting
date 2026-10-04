@@ -1,0 +1,27 @@
+## 快速开始
+
+本节说明如何安装 sqlpipe 并完成第一次运行。
+
+### 1. 安装
+
+在终端运行下面的命令。命令会下载并安装 sqlpipe。
+
+```
+curl -sSL https://get.sqlpipe.dev | sh
+```
+
+安装结束后，确认终端可以找到 `sqlpipe` 命令。
+
+### 2. 配置
+
+在当前目录创建文件 `sqlpipe.yaml`。在文件中写入你的配置。sqlpipe 运行时会读取这个文件。
+
+### 3. 第一次运行
+
+如果 `sqlpipe.yaml` 在当前目录，运行下面的命令。
+
+```
+sqlpipe run --config sqlpipe.yaml
+```
+
+参数 `--config` 指定配置文件的路径。如果运行失败，阅读终端中的错误信息。然后确认 `sqlpipe.yaml` 的内容正确。

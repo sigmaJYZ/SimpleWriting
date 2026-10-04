@@ -1,0 +1,11 @@
+Yes, a lag that keeps climbing is a problem, but the number 2 million does not tell you how bad it is. Consumer lag (the count of messages written to a topic that your consumers have not yet processed) matters only when you compare it to how fast your consumers work. Divide the lag by the consume rate to get the delay. At 10,000 messages per second, 2 million messages is about 200 seconds of delay. At 100 messages per second, it is about 5.5 hours.
+
+The trend matters more than the size. If the lag climbs steadily, producers write faster than consumers read, and the delay will keep growing until you fix the cause. If the lag spiked and is now falling, the consumers are catching up and you can often wait.
+
+For users, the effect depends on what the consumers do. Users see stale data, late notifications or emails, order or payment statuses that do not update, and search results or dashboards that trail reality. If the consumers feed a user-facing feature, users notice the delay once it passes a few seconds or minutes. If they feed background analytics, users may never notice.
+
+The worst case is data loss. Kafka deletes old messages when they pass the topic retention period (often 7 days). If the lag grows to the point that the consumer is behind by more than that period, the consumer will skip messages that it never processed. Compare your time delay to your retention setting.
+
+To find the cause, first look at lag per partition. If one partition holds most of the lag, you have a hot partition or one stuck message that fails and retries. If all partitions lag evenly, the consumers are too slow overall or too few. Then check for these common causes: a recent deploy that slowed processing, a slow downstream service such as a database or an API, frequent consumer group rebalances (when Kafka reassigns partitions among consumers), and a consumer count that is lower than the partition count. Adding consumers helps only up to the number of partitions.
+
+If you share the consume rate, the topic retention, and what the consumer group does, I can tell you how urgent it is.

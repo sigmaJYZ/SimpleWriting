@@ -1,0 +1,35 @@
+A backfill is a job that fills in a value for every row that already exists in the table, usually in small batches, so that you can add the NOT NULL rule afterward without locking the table for a long time. I assume you use Postgres, so tell me if you do not.
+
+Your migration probably hangs for one of two reasons. The first is that it needs a lock that blocks all reads and writes on the table, and it waits behind a long-running transaction while every new query waits behind it. The second is that on an old database version, or with a default that changes per row, the database rewrites all 20 GB while it holds that lock.
+
+First, cancel the migration. Then split it into steps that each run fast. This is the usual pattern:
+
+```sql
+-- Step 1: add the column as nullable (fast, no rewrite)
+ALTER TABLE big_table ADD COLUMN new_col integer;
+
+-- Step 2: make new rows get a value
+ALTER TABLE big_table ALTER COLUMN new_col SET DEFAULT 0;
+
+-- Step 3: backfill old rows in batches, and repeat until 0 rows update
+UPDATE big_table
+SET new_col = 0
+WHERE id IN (
+  SELECT id FROM big_table
+  WHERE new_col IS NULL
+  LIMIT 10000
+);
+
+-- Step 4: add the rule without a full scan, then check it separately
+ALTER TABLE big_table
+  ADD CONSTRAINT new_col_not_null CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE big_table VALIDATE CONSTRAINT new_col_not_null;
+
+-- Step 5: on Postgres 12 or later, this now skips the scan
+ALTER TABLE big_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE big_table DROP CONSTRAINT new_col_not_null;
+```
+
+Run step 3 from a script or a loop, with a short pause between batches, so that replicas keep up and locks stay short. Set `lock_timeout` (for example `SET lock_timeout = '5s'`) before steps 1, 2, 4, and 5, so that a blocked migration fails fast instead of freezing your application. Before you retry, run `SELECT * FROM pg_stat_activity WHERE state <> 'idle'` to find old transactions that hold the lock.
+
+If the new value is a constant, Postgres 11 or later can add a column with a constant default and NOT NULL in one fast statement. In that case the hang more likely comes from a blocked lock than from a rewrite.

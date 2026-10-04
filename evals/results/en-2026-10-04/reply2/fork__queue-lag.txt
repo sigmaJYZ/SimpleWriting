@@ -1,0 +1,11 @@
+Whether 2 million is bad depends on two things: how fast your consumers process messages, and whether the number is still rising. You can estimate the delay by dividing the lag by the consumption rate. If the consumers read 10,000 messages per second, 2 million messages is about 200 seconds of delay, which many systems can accept. If they read 100 messages per second, the delay is about 5.5 hours, which is a serious problem.
+
+The effect on users depends on what the topic feeds. If it feeds notifications, search indexing, order status, or payments, users see stale or missing data. For example, they may not receive a confirmation email, or a purchase may not appear in their account for a long time. If it feeds analytics or batch reports, users probably notice nothing.
+
+A lag that climbs steadily is a worse sign than a high but stable lag. A climbing lag means producers write faster than consumers read, so the delay keeps growing until you fix the cause. A spike that falls back after a traffic burst is normal.
+
+To find the cause, check these things in order. First, check whether the consumers are running and whether the group is rebalancing (reassigning partitions) often. Second, check whether one partition holds most of the lag, because that points to a slow or stuck consumer or an uneven key. Third, compare the producer rate with the consume rate. Fourth, check downstream dependencies such as a database or an API, because slow calls there slow the consumers.
+
+Also check your topic retention. If the lag grows faster than the consumers can clear it and reaches the retention limit, Kafka deletes unread messages, and users then lose data permanently.
+
+If you tell me the topic name, the consume rate, and the trend over the last few hours, I can give you a more specific answer.

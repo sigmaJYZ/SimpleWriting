@@ -1,0 +1,7 @@
+{
+ "alias": "sonnet",
+ "effort": "low",
+ "models": [
+  "claude-sonnet-5-5"
+ ]
+}

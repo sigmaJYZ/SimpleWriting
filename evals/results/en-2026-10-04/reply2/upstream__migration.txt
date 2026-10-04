@@ -1,0 +1,32 @@
+A backfill (filling in a value for every existing row) is the step you skip when you add a NOT NULL column to a big table in one statement. I assume you use Postgres, so tell me if you use something else.
+
+Existing rows need a value in the new column. If you gave no default, or a default that changes per row, the database must rewrite all 20 GB while it holds a lock that blocks other queries. That is the likely cause of the hang. A second cause is that the migration waits for a lock behind a long-running transaction, and every other query then waits behind the migration. In Postgres 11 and later, a constant default does not rewrite the table, so if you used one, check for a blocking session in `pg_stat_activity` first.
+
+The usual fix is to split the change into steps. First, cancel the stuck migration. Then run these steps as separate migrations:
+
+```sql
+-- 1. Add the column as nullable. This is instant.
+ALTER TABLE big_table ADD COLUMN new_col integer;
+
+-- 2. Make the application write new_col for all new rows.
+
+-- 3. Backfill old rows in small batches. Repeat until 0 rows update.
+UPDATE big_table
+SET new_col = 0
+WHERE id IN (
+  SELECT id FROM big_table
+  WHERE new_col IS NULL
+  LIMIT 10000
+);
+
+-- 4. Add the constraint without a long lock, then validate it.
+ALTER TABLE big_table
+  ADD CONSTRAINT new_col_not_null CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE big_table VALIDATE CONSTRAINT new_col_not_null;
+
+-- 5. In Postgres 12 and later, this step is now fast.
+ALTER TABLE big_table ALTER COLUMN new_col SET NOT NULL;
+ALTER TABLE big_table DROP CONSTRAINT new_col_not_null;
+```
+
+Batches keep each transaction short, so other queries are not blocked and the table does not bloat all at once. Run the batch statement from a script or a job, with a short pause between batches. Replace `0` with the real value or expression for your data. Also set `lock_timeout` (for example `SET lock_timeout = '5s'`) in the migration so that it fails fast instead of hanging if it cannot get its lock.

@@ -1,0 +1,26 @@
+curl cannot link the certificate that your internal API sends to a root certificate authority (CA, a party that signs certificates) in its trust store. This usually happens for one of two reasons. The API uses a certificate signed by a private company CA that your machine does not know, or the server sends its own certificate without the intermediate certificate that connects it to the root.
+
+To see which case you have, inspect the chain that the server sends. Replace the host name with your own.
+
+```bash
+openssl s_client -connect api.internal.example:443 -showcerts </dev/null
+```
+
+If the output shows only one certificate and the error says "unable to verify the first certificate", the server is missing the intermediate. You must fix this on the server by serving the full chain file (certificate plus intermediates). If the chain is complete but the root is private, your machine must trust that root.
+
+For a private CA, ask your platform or security team for the root CA file in PEM format. Then you can test with one command:
+
+```bash
+curl --cacert /path/to/internal-ca.pem https://api.internal.example/health
+```
+
+Your shell runs on WSL with a Linux distribution, so you can make the trust permanent with the system store. This command set works on Debian and Ubuntu:
+
+```bash
+sudo cp internal-ca.pem /usr/local/share/ca-certificates/internal-ca.crt
+sudo update-ca-certificates
+```
+
+The file must end in `.crt`, or the update command will skip it. If your company root is already installed in Windows, WSL does not share that store, so you must install it in Linux as shown above.
+
+Do not use `curl -k` or `--insecure` except for a quick local test. It turns off certificate checks, so it hides the problem and allows a man-in-the-middle attack (someone who intercepts your traffic).

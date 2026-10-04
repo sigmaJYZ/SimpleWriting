@@ -1,0 +1,10 @@
+[
+  {"id": "why-timeout", "term": "幂等", "prompt": "我的部署脚本在超时后会重试对 /v2/orders 的 POST 请求。这样安全吗？有人说这个接口是幂等的，我不太清楚这是什么意思。简单解释一下。"},
+  {"id": "pick-db", "term": "分片", "prompt": "我们有一张 4000 万行的 Postgres 表，读取很慢。有人说要做分片。我第一步该做什么？"},
+  {"id": "cert-error", "term": "TLS", "prompt": "curl 访问我们的内部 API 时报错：'SSL certificate problem: unable to get local issuer certificate'。这是怎么回事？怎么修？"},
+  {"id": "queue-lag", "term": "consumer lag", "prompt": "我们的 Kafka 监控显示 consumer lag 涨到了 200 万。这严重吗？对用户有什么影响？"},
+  {"id": "oom", "term": "OOMKilled", "prompt": "一个 Kubernetes pod 一直重启，状态是 OOMKilled。解释一下发生了什么，我该改什么。"},
+  {"id": "rate-limit", "term": "令牌桶", "prompt": "我们想把一个 API 限制为每个用户每分钟 100 次请求。同事建议用令牌桶。用简单的话解释一下，并说明它是否合适。"},
+  {"id": "migration", "term": "回填", "prompt": "我们给一张 20 GB 的表加了一个 NOT NULL 列，迁移卡住了。DBA 说需要做回填。这是什么？我该怎么做？"},
+  {"id": "cache", "term": "缓存失效", "prompt": "我们更新价格后，用户最长会有 10 分钟看到旧价格。数据库前面用了 Redis。为什么会这样？怎么修？"}
+]

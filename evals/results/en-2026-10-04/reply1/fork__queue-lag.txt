@@ -1,0 +1,11 @@
+A lag of 2 million is not good or bad by itself. What matters is how fast your consumers work and whether the number keeps rising. Consumer lag (the count of messages written to a topic that the consumer group has not yet processed) only tells you how far behind the consumers are.
+
+To judge the size, divide the lag by the rate at which the group consumes. If the group processes 20,000 messages per second, 2 million is about 100 seconds of delay, which many systems can accept. If it processes 200 per second, the delay is nearly three hours, which is serious. The word "climbing" is the bigger concern. It means producers write faster than consumers read, so the delay grows until something changes.
+
+For users, the effect depends on what the consumer does. Users see stale data or late actions. For example, an order status that does not update, a notification that arrives an hour late, a search result that misses new items, or an analytics dashboard that shows old numbers. Nothing is lost at this point, because the messages wait in Kafka.
+
+The worst case is data loss. If the lag grows past the topic retention period (how long Kafka keeps messages, often 7 days), Kafka deletes unread messages and the consumers skip them for good. Short of that, a large backlog also makes recovery slow, because the consumers must clear the backlog and keep up with new traffic at once.
+
+To find the cause, check three things. First, make sure that the lag is spread across all partitions, because lag on a few partitions points to a hot key or one stuck consumer. Second, check whether the consumers restarted or rebalanced often, since each rebalance pauses processing. Third, check whether a downstream dependency such as a database or an API slowed down, because that is a common reason for a drop in consume rate. If the consumers are healthy but simply too slow for the load, add consumers, up to the number of partitions, or add partitions.
+
+If you share the consume rate, the topic retention, and what this consumer group does, I can help you judge how urgent this is.

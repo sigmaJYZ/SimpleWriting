@@ -1,0 +1,29 @@
+## 快速开始
+
+本节说明如何安装 sqlpipe 并完成第一次运行。你需要一台能访问互联网的 Linux 或 macOS 电脑，并且已经安装 curl。
+
+### 1. 安装
+
+在终端运行下面的命令：
+
+```bash
+curl -sSL https://get.sqlpipe.dev | sh
+```
+
+安装结束后，运行 `sqlpipe --version`。如果终端显示版本号，说明安装成功。
+
+### 2. 编写配置
+
+在当前目录创建文件 `sqlpipe.yaml`。这个文件保存 sqlpipe 运行所需的全部配置。sqlpipe 在每次运行时读取它。
+
+### 3. 第一次运行
+
+在 `sqlpipe.yaml` 所在的目录运行下面的命令：
+
+```bash
+sqlpipe run --config sqlpipe.yaml
+```
+
+如果配置有错误，sqlpipe 会在终端显示错误信息，并且不会继续运行。请先根据错误信息修改 `sqlpipe.yaml`，然后再次运行同一条命令。
+
+如果运行成功，终端会显示运行结果。

@@ -1,0 +1,32 @@
+这个错误表示 curl 无法验证服务器证书的签发链，通常是因为你的机器不信任签发该证书的 CA（证书颁发机构）。内部 API 常用公司自建的私有 CA，或者服务器没有发送完整的中间证书，所以系统自带的根证书库里找不到对应的签发者。
+
+先确认原因。下面的命令会显示服务器发送的证书链，请把 `api.internal.example.com` 换成你的真实主机名：
+
+```bash
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+```
+
+如果输出末尾有 `verify error:num=20:unable to get local issuer certificate`，并且链里只有一张证书，说明服务器没有发送中间证书。这时应该由服务器管理员把中间证书加到服务器配置里（例如 nginx 的 `ssl_certificate` 文件要用 fullchain）。如果链是完整的，但根证书是公司自建的，说明你的机器缺少这个根证书。
+
+针对缺少公司根证书的情况，有两种修法。第一种是只让 curl 信任它。向 IT 或平台团队要到根证书（PEM 格式），然后运行：
+
+```bash
+curl --cacert /path/to/company-root-ca.pem https://api.internal.example.com/
+```
+
+也可以设置环境变量 `CURL_CA_BUNDLE=/path/to/company-root-ca.pem`，这样每次不用加参数。
+
+第二种是把它装进系统信任库，这样 curl 和其他工具都会信任它。在 Debian 或 Ubuntu（包括 WSL）上运行：
+
+```bash
+sudo cp company-root-ca.pem /usr/local/share/ca-certificates/company-root-ca.crt
+sudo update-ca-certificates
+```
+
+文件扩展名必须是 `.crt`，否则 `update-ca-certificates` 会忽略它。
+
+如果你在公司网络或 VPN 后面，也可能是代理在做 TLS 拦截，并用公司根证书重新签发了证书。修法相同：安装代理使用的根证书。
+
+不要用 `curl -k` 或 `--insecure` 作为长期方案，因为它会关闭所有证书验证，请求就可能被中间人攻击。它只适合在排查时临时确认问题确实出在证书上。
+
+如果你把 `openssl s_client` 的输出贴给我，我可以帮你判断是缺中间证书还是缺根证书。

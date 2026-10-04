@@ -1,0 +1,30 @@
+这个错误表示 curl 无法验证服务器证书的签发者，原因通常是内部 API 的证书由公司私有 CA（证书颁发机构）签发，而你的系统信任库里没有这个 CA。另一个常见原因是服务器没有发送中间证书，或者公司代理替换了证书。
+
+先确认服务器实际发送了什么证书链：
+
+```bash
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+```
+
+把主机名换成你的内部 API 地址。如果输出里只有一张证书，并且末尾有 "unable to verify the first certificate"，说明服务器没有发送中间证书。这时必须让服务端管理员补全证书链。
+
+如果证书链完整，但根 CA 是公司私有的，请向运维或安全团队要根 CA 的 PEM 文件。拿到后，你可以只对单次请求指定它：
+
+```bash
+curl --cacert /path/to/company-root-ca.pem https://api.internal.example.com/
+```
+
+如果希望所有工具都信任它，在 Debian 或 Ubuntu（包括你的 WSL）上把它加入系统信任库：
+
+```bash
+sudo cp company-root-ca.pem /usr/local/share/ca-certificates/company-root-ca.crt
+sudo update-ca-certificates
+```
+
+文件扩展名必须是 `.crt`，否则 `update-ca-certificates` 不会处理它。
+
+如果你在公司网络或 VPN 下，代理可能在做 TLS 拦截（中途解密再重新加密）。这时要信任的是代理的根证书，做法与上面相同。
+
+临时调试时可以用 `curl -k` 跳过验证，但不要在脚本或生产环境使用它，因为这样会失去对中间人攻击的防护。
+
+如果你告诉我 `openssl s_client` 的输出，我可以帮你判断是哪一种原因。

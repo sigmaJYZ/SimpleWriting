@@ -1,0 +1,5 @@
+```
+错误：sqlpipe 上传到 S3 失败，错误代码是 AccessDenied。
+原因：IAM 凭证缺少 s3:PutObject 权限。
+为该 IAM 凭证添加 s3:PutObject 权限，然后重新运行 sqlpipe。
+```

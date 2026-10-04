@@ -1,0 +1,7 @@
+The retry is safe only if the endpoint really treats repeated requests as one order, and a POST that creates orders usually does not do that unless it was built to.
+
+Idempotent (safe to repeat) means that sending the same request many times leaves the server in the same state as sending it once. Setting an order status to "shipped" is idempotent. Creating a new order is not, because each call can add another row.
+
+A timeout makes this matter. When your script times out, it does not know if the server never got the request or if the server created the order and the reply was lost. If the second case is true, a blind retry creates a duplicate order.
+
+Check how the endpoint avoids duplicates. The common method is an idempotency key (a unique ID that the client sends with the request). Your script generates the key once per order, sends the same key on every retry, and the server returns the original result when it sees the key again. If the API documentation does not describe such a key or another dedupe rule, treat the endpoint as not idempotent and do not retry automatically. Instead, query the orders for a match before you send the request again.

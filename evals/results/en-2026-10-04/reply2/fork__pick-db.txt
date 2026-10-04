@@ -1,0 +1,17 @@
+Do not shard first. 40 million rows is small for Postgres, and slow reads at this size almost always come from a missing index, a bad query plan, or stale statistics, which you can fix at much lower cost.
+
+Start by finding which queries are slow. Turn on the pg_stat_statements extension (it records time per query), sort by total time, and pick the top few. Then run each one with this command:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) <your query>;
+```
+
+If the plan shows a sequential scan (a read of the whole table) on a query that returns few rows, you need an index. A composite index that matches your WHERE and ORDER BY columns in that order is the most common fix. A partial index (an index on only the rows that you query) or a covering index (one that holds all the columns the query reads) can help more.
+
+Next, make sure that the table is healthy. Run ANALYZE so the planner has current statistics, and check for bloat (dead space from updates and deletes) and for autovacuum that falls behind. Also check that shared_buffers and work_mem fit your machine. Fix query habits too: select only the columns that you need, and replace OFFSET pagination with keyset pagination (filter by the last seen key), because OFFSET gets slower on every page.
+
+If those steps are not enough, take the next step in this order. Add a read replica (a copy of the database that serves reads) to spread the load. Then use declarative partitioning (Postgres splits one table into smaller ones by a key, usually time) if most queries filter on that key. Archiving old rows can also cut the working set.
+
+Sharding (splitting data across several database servers) comes last. It adds cost in joins, transactions, and operations, and you need it only when one server cannot hold the write load or the data size. A table of 40 million rows is far from that point.
+
+If you send me the slow query, its EXPLAIN output, and the table definition, I can tell you which of these steps will help.

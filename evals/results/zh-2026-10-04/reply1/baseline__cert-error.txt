@@ -1,0 +1,43 @@
+这个错误的意思是：curl 没法验证服务器证书的签发链。服务器返回了证书，但 curl 在本机信任的 CA 列表里找不到签发它的根证书或中间证书。
+
+**常见原因**（内部 API 里最常见的是前两个）：
+
+1. **内部 CA 签发的证书**：公司用自建 CA，本机的信任库里没有这个根证书。
+2. **服务器没发送完整证书链**：缺少中间证书，浏览器可能会自动补全，curl 不会。
+3. **公司代理做 TLS 拦截**：代理用自己的 CA 重新签发证书。
+4. **系统 CA 包过旧或缺失**：比如精简的容器或 WSL 里没装 `ca-certificates`。
+5. **自签名证书**：开发或测试环境常见。
+
+**先诊断**：
+
+```bash
+# 查看服务器实际返回的证书链
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+
+# 看 curl 的详细输出
+curl -v https://api.internal.example.com/
+```
+
+看 `Verify return code` 和证书链里的 `issuer`。如果只有一张叶子证书，说明服务器没配全链（原因 2）；如果 issuer 是公司名，说明是内部 CA（原因 1/3）。
+
+**修复方法**：
+
+- **内部 CA（推荐）**：向运维要根证书（PEM 格式），然后任选一种：
+  ```bash
+  # 只对单次请求生效
+  curl --cacert /path/to/internal-ca.pem https://api.internal.example.com/
+
+  # 或安装到系统信任库（Debian/Ubuntu/WSL）
+  sudo cp internal-ca.crt /usr/local/share/ca-certificates/
+  sudo update-ca-certificates
+  ```
+  RHEL/CentOS 则用 `/etc/pki/ca-trust/source/anchors/` 加 `sudo update-ca-trust`。
+  也可以用环境变量 `export CURL_CA_BUNDLE=/path/to/internal-ca.pem`。
+
+- **服务器缺中间证书**：让服务端把中间证书拼接到证书文件里（`cat server.crt intermediate.crt > fullchain.crt`）。这是正确的根治办法，在客户端绕开只是权宜之计。
+
+- **系统缺 CA 包**：`sudo apt install --reinstall ca-certificates && sudo update-ca-certificates`。
+
+- **临时调试**：`curl -k`（`--insecure`）可以跳过验证，用来确认问题确实出在证书上。**不要**在脚本或生产环境里长期使用，它会让你暴露在中间人攻击下。
+
+如果你把 `openssl s_client` 输出里的证书链（issuer 那几行）贴给我，我可以帮你判断具体是哪种情况。

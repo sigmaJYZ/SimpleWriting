@@ -1,0 +1,20 @@
+## 故障排查
+
+### 连接 Postgres 超时
+
+如果运行 `sqlpipe` 时出现 `connection timed out` 或 `could not connect to server`，请依次检查：
+
+1. **网络连通性**：用 `pg_isready -h <host> -p <port>` 或 `nc -vz <host> <port>` 确认端口可达。
+2. **防火墙与安全组**：确认数据库所在的防火墙、VPC 安全组允许来自运行 `sqlpipe` 的机器的入站连接（默认端口 5432）。
+3. **连接串**：核对主机名、端口、数据库名是否正确。云数据库通常要求 `sslmode=require`。
+4. **超时设置**：网络较慢时，可在连接串中加大超时，例如 `?connect_timeout=30`。
+5. **连接数上限**：如果服务器返回 `too many connections`，请降低 `sqlpipe` 的并发数，或检查 `max_connections` 配置。
+
+### S3 权限错误
+
+出现 `AccessDenied` 或 `403 Forbidden` 时：
+
+1. **确认身份**：运行 `aws sts get-caller-identity`，检查 `sqlpipe` 实际使用的凭证是否是预期的账号或角色。
+2. **检查 IAM 策略**：读取需要 `s3:GetObject` 和 `s3:ListBucket`，写入需要 `s3:PutObject`。注意 `ListBucket` 作用于桶本身（`arn:aws:s3:::bucket`），而 `GetObject` 和 `PutObject` 作用于对象（`arn:aws:s3:::bucket/*`）。
+3. **区域一致**：确认桶所在区域与 `AWS_REGION` 一致。
+4. **桶策略与加密**：检查桶策略是否有显式拒绝，若使用 KMS 加密，还需要相应的 `kms:Decrypt` 或 `kms:GenerateDataKey` 权限。

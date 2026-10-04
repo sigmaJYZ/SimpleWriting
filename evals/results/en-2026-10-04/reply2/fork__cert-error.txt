@@ -1,0 +1,28 @@
+curl cannot build a chain of trust from the server certificate to a root certificate that it trusts. Your internal API most likely uses a certificate signed by a private certificate authority (CA), which is not in the CA list that curl uses. Another cause is a server that does not send its intermediate certificate.
+
+To find out which case you have, run this command and read the chain that it prints:
+
+```
+openssl s_client -connect api.internal.example.com:443 -showcerts
+```
+
+Replace the host name with your own. If the output shows "self-signed certificate in certificate chain" or an issuer that you do not know, the private CA is the cause. If the chain has only the server certificate and no intermediate, the server is set up wrong.
+
+For a private CA, get the root CA certificate in PEM format from your platform or security team. Then tell curl to trust it for one call:
+
+```
+curl --cacert /path/to/internal-ca.pem https://api.internal.example.com/
+```
+
+To make the trust permanent on Debian or Ubuntu (this includes WSL2), copy the file and update the system store:
+
+```
+sudo cp internal-ca.pem /usr/local/share/ca-certificates/internal-ca.crt
+sudo update-ca-certificates
+```
+
+You can also set the `CURL_CA_BUNDLE` environment variable to the path of the PEM file. Tools other than curl, such as Python or Node, can use their own CA lists. For Node, set `NODE_EXTRA_CA_CERTS` to the same file.
+
+If the chain is missing an intermediate certificate, the fix belongs on the server. The server owner must configure it to send the full chain (the server certificate plus the intermediates).
+
+Do not use `curl -k` or `--insecure` except for a quick test. It turns off certificate checks, so an attacker on the network can impersonate the API.

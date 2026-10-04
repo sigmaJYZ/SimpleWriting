@@ -2,6 +2,30 @@
 
 Each entry names the version, the date, and the measured effect where one exists.
 
+## 2.1.1.2, 2026-10-04
+
+- Added: a language layer in `prompts/language-layer.md`. A second
+  `SessionStart` hook prints it after the upstream rule block. The model
+  writes in the language of the user. The layer adds no rule of its own: it
+  gives the Chinese form of each upstream rule that names English words or
+  English grammar. The upstream rule files did not change.
+- Added: `evals/lang_lint.py`, a language gate. Chinese text gets the four
+  upstream checks that have a Chinese form: sentence length, semicolon,
+  dash, and filler words. The Chinese sentence limit counts units: 35 for
+  procedural text and 40 for descriptive text. Text in other languages gets
+  no hits from the English word lists. English text gives the same result
+  as before.
+- Changed: the `PostToolUse` hook and the `Stop` hook start from
+  `src/hooks/lint_hook_fork.py`. For a file that is not English, an `Edit`
+  is judged on the lines that the edit touched.
+- Added: `evals/run_layer_bench.py` with two suites and their results under
+  `evals/results/`. On claude-sonnet-5-5, 1 of 8 Chinese document tasks came
+  back in English with the upstream rules, and none with the layer. On the
+  upstream English questions and tasks, the layer made no clear change.
+- Changed: the version scheme. The version is the upstream version plus one
+  part for the fork revision. Revision 1 had the name 2.1.2. `FORK.md` gives
+  the details.
+
 ## 2.1.2, 2026-10-04
 
 - Fixed: the linter now ends a sentence at `。`, `！`, and `？`. These marks

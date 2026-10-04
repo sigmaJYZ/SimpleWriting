@@ -1,0 +1,20 @@
+## 故障排查
+
+### 连接 Postgres 超时
+
+如果 sqlpipe 报告连接超时，先确认网络可达。
+
+1. 在运行 sqlpipe 的主机上执行 `psql -h <主机> -p 5432 -U <用户> <数据库>`。
+2. 如果 psql 也超时，确认防火墙或安全组允许该主机访问 5432 端口。
+3. 如果 psql 可以连接，确认 sqlpipe 配置中的主机、端口和数据库名与 psql 一致。
+
+如果服务器在远程，必须在 `postgresql.conf` 中设置 `listen_addresses`。
+
+### S3 权限错误
+
+如果 sqlpipe 报告 `AccessDenied`，说明当前凭证缺少权限。
+
+1. 确认 sqlpipe 使用的 IAM 身份（AWS 的访问身份）正确。
+2. 确认该身份对存储桶有 `s3:ListBucket` 权限。
+3. 确认该身份对对象有 `s3:GetObject` 和 `s3:PutObject` 权限。
+4. 确认存储桶名称和区域正确。

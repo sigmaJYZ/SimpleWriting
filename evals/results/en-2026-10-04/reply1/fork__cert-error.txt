@@ -1,0 +1,28 @@
+curl cannot build a chain of trust from the certificate that your internal API sends back to a certificate authority (CA, a party that signs certificates) that it trusts. This usually happens because the API uses a certificate signed by a private company CA, or because the server sends its own certificate without the intermediate certificate that links it to the root.
+
+First find out which case you have. This command shows the chain that the server sends:
+
+```bash
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+```
+
+If the output shows only one certificate and the "Verify return code" is 21, the server is missing its intermediate certificate. The fix belongs on the server: configure it to send the full chain (the server certificate followed by the intermediate). If the chain is complete but the issuer is your company CA, curl does not know that CA yet.
+
+For a private CA, get the root CA certificate in PEM format from your platform or security team. Then you can pass it to curl for one request:
+
+```bash
+curl --cacert /path/to/company-root-ca.pem https://api.internal.example.com/health
+```
+
+To make it work for all tools on the machine, install the CA in the system store. This works on Debian, Ubuntu, and WSL2:
+
+```bash
+sudo cp company-root-ca.pem /usr/local/share/ca-certificates/company-root-ca.crt
+sudo update-ca-certificates
+```
+
+The file must end in .crt for this command to pick it up. On Red Hat and Fedora, copy the file to /etc/pki/ca-trust/source/anchors/ and run `sudo update-ca-trust`.
+
+You can use `curl -k` to skip verification, but only for a quick test. It removes the protection against a man-in-the-middle attack (someone who intercepts your traffic), so do not put it in scripts or pipelines.
+
+If a corporate proxy inspects your traffic, the certificate that curl sees comes from the proxy and not from the API. In that case, install the proxy's root CA with the steps above.

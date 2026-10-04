@@ -1,0 +1,16 @@
+name: check-fork
+on: [push, pull_request]
+jobs:
+  check-fork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python3 evals/lang_lint.py --self-test
+      - run: node --test src/hooks/language-layer.test.js
+      - run: python3 src/hooks/test_lint_hook_fork.py
+      - run: python3 evals/run_layer_bench.py --suite zh --out evals/results/zh-2026-10-04 --check
+      - run: python3 evals/run_layer_bench.py --suite en --out evals/results/en-2026-10-04 --check

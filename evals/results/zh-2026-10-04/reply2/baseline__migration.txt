@@ -1,0 +1,46 @@
+## 什么是回填（backfill）
+
+回填就是给表里**已有的行**补上新列的值。`NOT NULL` 要求每一行都有值，但这 2 000 万（或更多）行旧数据在新列上还是空的。要么数据库替你一次性填完，要么你自己分批填。
+
+## 迁移为什么会卡住
+
+直接执行 `ALTER TABLE ... ADD COLUMN x ... NOT NULL` 时，通常有两种情况：
+
+- **整表重写。** 数据库要在持有强锁（Postgres 是 `ACCESS EXCLUSIVE`）的同时改写 20 GB 数据，期间读写全部阻塞。
+- **排队等锁。** 有长事务占着表，ALTER 排在它后面，之后所有查询又排在 ALTER 后面，看起来就像整个库卡死。
+
+## 该怎么做
+
+下面以 Postgres 为例。先停掉卡住的迁移，再拆成几步（expand/contract 模式）。
+
+1. **取消卡住的迁移**，并查看谁在持锁：
+   ```sql
+   SELECT pid, state, query_start, query FROM pg_stat_activity WHERE state <> 'idle' ORDER BY query_start;
+   SELECT pg_cancel_backend(<pid>);
+   ```
+2. **加可空列。** 这一步是瞬时的。以后跑迁移都先设 `SET lock_timeout = '3s';`。
+   ```sql
+   ALTER TABLE t ADD COLUMN x integer;
+   ```
+3. **让应用对新行写入 `x`**，可以是双写，也可以设默认值，这样不会再产生新的 NULL。
+4. **分批回填旧数据。** 按主键范围，每批 5k～50k 行，每批单独提交，批间稍作停顿，同时盯着复制延迟和锁等待。
+   ```sql
+   UPDATE t SET x = <值或表达式>
+   WHERE id >= :lo AND id < :hi AND x IS NULL;
+   ```
+5. **确认已没有 NULL：** `SELECT 1 FROM t WHERE x IS NULL LIMIT 1;`
+6. **加上 NOT NULL，避免长时间锁表。**
+   ```sql
+   ALTER TABLE t ADD CONSTRAINT x_nn CHECK (x IS NOT NULL) NOT VALID;
+   ALTER TABLE t VALIDATE CONSTRAINT x_nn;   -- 只加轻锁，可在线跑
+   ALTER TABLE t ALTER COLUMN x SET NOT NULL; -- PG12+ 会借助上面的约束跳过全表扫描
+   ALTER TABLE t DROP CONSTRAINT x_nn;
+   ```
+
+## 补充说明
+
+- **默认值是常量，并且是 PG 11+：** 直接 `ADD COLUMN x int NOT NULL DEFAULT 0` 就是瞬时的，不需要回填。
+- **MySQL：** 用 `gh-ost` 或 `pt-online-schema-change`，或者确认 `ALGORITHM=INPLACE, LOCK=NONE` 是否适用。
+- 回填会产生大量 WAL/binlog 和表膨胀，所以要分批，并安排好 vacuum。
+
+你用的是什么数据库和版本？新列的值是常量，还是要从别的列或表计算出来？告诉我这两点，我可以帮你写出具体的迁移和分批回填脚本。

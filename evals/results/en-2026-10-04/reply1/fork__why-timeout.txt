@@ -1,0 +1,7 @@
+Yes, the retry is safe if the endpoint is truly idempotent (sending the same request many times has the same effect as sending it once). The risk is that a POST is not idempotent by default, so you must make sure that the claim holds for your endpoint.
+
+A timeout means you do not know if the first request worked. The server may have created the order and only the reply was lost. If the endpoint is idempotent, the retry will not create a second order. It will return the first result or do nothing new.
+
+Servers usually get this property in one of two ways. The client sends an idempotency key (a unique ID for the request, often in an `Idempotency-Key` header), or the client sets the order ID itself. In both cases, your script must send the same key or ID on every retry. If the script makes a new key for each attempt, the server sees separate requests and creates duplicate orders.
+
+Make sure that the API documentation names the key or ID that the server uses to remove duplicates. If it names none, test the endpoint in a staging environment by sending the same request twice and counting the orders. Also limit the number of retries and wait longer between each one, so a slow server does not get more load.

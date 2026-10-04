@@ -1,0 +1,15 @@
+Do not shard first, because 40 million rows is small for Postgres and slow reads almost always come from a fixable query or index problem. Start by finding the slowest queries and reading their plans.
+
+Turn on the `pg_stat_statements` extension (it records time spent per query) and sort by total time to find which queries hurt most. Then run this on each one:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT ...;
+```
+
+If the plan shows a sequential scan (a read of the whole table) on a query that returns few rows, you are missing an index. Add one that matches the `WHERE` and `ORDER BY` columns. If the query needs only a few columns, a covering index (an index that also stores those columns) lets Postgres skip the table read. If the query filters on a small slice of the data, such as `status = 'active'`, a partial index (an index on only some rows) is smaller and faster.
+
+Next, check the table health. Run `ANALYZE` to refresh the planner statistics, and check for bloat (dead rows that take up space) and whether autovacuum keeps up. Also compare `shared_buffers` and `work_mem` with the size of your hot data, because a low value forces reads from disk.
+
+If those steps do not fix it, try these options in this order. Add a read replica (a copy of the database that serves reads) if the load is mostly reads. Add a cache such as Redis for repeated reads. Use partitioning (splitting one table into parts inside one database) if queries usually target a time range or a tenant. Sharding (splitting data across several servers) comes last, because it adds large costs to joins, transactions, and operations. Most teams need it only at billions of rows or at write rates that one server cannot handle.
+
+If you send me the slow query, its `EXPLAIN (ANALYZE, BUFFERS)` output, and the table definition with its indexes, I can tell you which step will help most.

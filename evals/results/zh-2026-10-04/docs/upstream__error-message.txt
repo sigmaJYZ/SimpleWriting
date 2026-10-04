@@ -1,0 +1,3 @@
+Error: S3 upload failed with AccessDenied.
+The IAM credentials do not have the s3:PutObject permission.
+Add s3:PutObject to the IAM policy for these credentials, then run the command again.

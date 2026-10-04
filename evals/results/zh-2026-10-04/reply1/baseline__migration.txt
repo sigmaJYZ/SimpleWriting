@@ -1,0 +1,47 @@
+## 回填（backfill）是什么
+
+给已有数据的表加 `NOT NULL` 列时，数据库要求每一行都有值。**回填**就是先把这列加成可空（nullable），再给存量行分批写入值，最后才加上 `NOT NULL` 约束。
+
+一条 `ALTER TABLE ... ADD COLUMN x ... NOT NULL DEFAULT ...` 在 20 GB 的表上会出两类问题：
+
+- **整表重写**：MySQL 5.7 以前，以及 Postgres 11 以前，或默认值是非常量表达式（比如 `now()` 或要按其他列计算）时，都会重写整表。
+- **长时间持锁**：Postgres 里是 `ACCESS EXCLUSIVE` 锁，会阻塞所有读写。更常见的"卡住"是迁移在排队等锁，被某个长事务挡住，而它后面的所有查询又都在等它。
+
+## 你该怎么做
+
+**1. 先止损**
+- 终止卡住的迁移会话。Postgres 用 `pg_cancel_backend(pid)`，MySQL 用 `KILL`。
+- 在 `pg_stat_activity`（Postgres）或 `SHOW PROCESSLIST`（MySQL）里找有没有长事务或空闲事务在占锁。
+- 确认迁移是否已回滚，表上没有残留的半成品列或锁。
+
+**2. 把迁移拆成几步（以 Postgres 为例）**
+```sql
+-- ① 加可空列，不带 NOT NULL，瞬间完成
+ALTER TABLE t ADD COLUMN new_col int;
+
+-- ② 应用代码开始双写：新插入和更新的行都写这个列
+
+-- ③ 分批回填存量行（循环执行，每批 1 万到 10 万行，批间 sleep）
+UPDATE t SET new_col = <值>
+WHERE id IN (
+  SELECT id FROM t WHERE new_col IS NULL ORDER BY id LIMIT 10000
+);
+
+-- ④ 回填完后加约束，避免长时间全表扫描持锁
+ALTER TABLE t ADD CONSTRAINT t_new_col_nn CHECK (new_col IS NOT NULL) NOT VALID;
+ALTER TABLE t VALIDATE CONSTRAINT t_new_col_nn;  -- 只持弱锁
+ALTER TABLE t ALTER COLUMN new_col SET NOT NULL; -- PG12+ 会利用已验证的 CHECK，跳过扫描
+ALTER TABLE t DROP CONSTRAINT t_new_col_nn;
+```
+
+如果默认值是常量，并且你用的是 **Postgres 11+**，直接 `ADD COLUMN ... NOT NULL DEFAULT 常量` 只改元数据，几乎瞬间完成，根本不用回填。如果用的是这种库却卡住了，多半是在等锁。
+
+**3. 回填时的注意事项**
+- 按主键范围分批，不要一条大 `UPDATE`，否则会长事务、表膨胀、复制延迟。
+- 监控复制延迟、锁等待和 WAL 增长量，必要时调小批量。
+- 在低峰期跑，脚本要能幂等、可中断续跑（靠 `WHERE new_col IS NULL`）。
+- 迁移前设置 `lock_timeout`（比如 `SET lock_timeout = '3s'`），拿不到锁就快速失败，而不是排队阻塞业务。
+- Postgres 回填后可以对表做 `VACUUM`。
+
+## 需要你确认的信息
+我不知道你用的是哪种数据库和版本，也不知道默认值是常量还是需要计算。如果告诉我这两点，我可以给你具体的迁移脚本和分批回填脚本。你也可以把 DBA 的原话或迁移文件贴过来，我帮你看。

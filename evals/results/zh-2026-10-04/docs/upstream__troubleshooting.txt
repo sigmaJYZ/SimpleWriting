@@ -1,0 +1,25 @@
+## 故障排查
+
+### 连接 Postgres 超时
+
+如果 sqlpipe 报告连接超时，请按以下步骤操作。
+
+1. 运行 `pg_isready -h <host> -p 5432`，确认主机和端口可以访问。
+2. 如果命令失败，检查防火墙或安全组。数据库必须允许你的出口 IP 访问 5432 端口。
+3. 确认连接字符串中的主机名、端口和数据库名正确。
+4. 如果数据库要求 SSL，在连接字符串中加入 `sslmode=require`。
+5. 如果你通过 VPN 或跳板机连接，先确认隧道已经建立。
+
+如果 `pg_isready` 成功但 sqlpipe 仍然超时，请增大连接超时时间，然后重试。
+
+### S3 权限错误
+
+如果 sqlpipe 报告 `AccessDenied` 或 `403`，请按以下步骤操作。
+
+1. 运行 `aws sts get-caller-identity`，确认 sqlpipe 使用的是你预期的账号和角色。
+2. 运行 `aws s3 ls s3://<bucket>/<prefix>`，确认该身份可以读取目标路径。
+3. 检查 IAM 策略。读取数据需要 `s3:GetObject` 和 `s3:ListBucket`。写入数据还需要 `s3:PutObject`。
+4. 如果桶使用 KMS 加密，给该身份添加 `kms:Decrypt` 和 `kms:GenerateDataKey` 权限。
+5. 确认桶的区域与你的配置一致。
+
+如果以上步骤都无法解决问题，请保存完整的错误信息，并在提交问题时附上它。

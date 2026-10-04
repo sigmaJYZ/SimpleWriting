@@ -1,0 +1,46 @@
+这个错误的意思是：curl 拿到了服务器的证书，但无法沿着证书链追溯到它信任的根 CA。也就是说，curl 的 CA 信任库里没有签发你们内部 API 证书的那个 CA。
+
+**常见原因**
+
+1. 内部 API 使用私有 CA（企业自建 CA）或自签名证书，系统信任库里没有它。
+2. 服务器没有发送完整的证书链，缺少中间证书。
+3. 公司代理或网关做了 TLS 拦截，换成了公司自己的证书。
+4. 本机 CA 包缺失或过期，例如最小化的容器或 WSL 里没装 `ca-certificates`。
+
+**先诊断**
+
+```bash
+# 查看服务器发来的证书链
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+
+# 看 curl 详细握手信息
+curl -v https://api.internal.example.com/
+```
+
+重点看 `issuer` 是谁，以及链里有几张证书。只有叶子证书而没有中间证书，就是原因 2。
+
+**修复方法（按推荐程度排序）**
+
+1. **指定内部 CA 证书（单次或按需使用）**
+   ```bash
+   curl --cacert /path/to/internal-ca.pem https://api.internal.example.com/
+   ```
+   也可以用环境变量：`export CURL_CA_BUNDLE=/path/to/internal-ca.pem`
+
+2. **把内部 CA 装进系统信任库（一劳永逸）**（你现在是 WSL/Debian 系，Ubuntu 同理）
+   ```bash
+   sudo cp internal-ca.crt /usr/local/share/ca-certificates/internal-ca.crt
+   sudo update-ca-certificates
+   ```
+   RHEL/CentOS 系则放到 `/etc/pki/ca-trust/source/anchors/`，然后执行 `sudo update-ca-trust`。
+
+3. **如果是缺少中间证书**：让服务端管理员把中间证书拼进服务器证书文件（fullchain），这是服务端的问题，客户端绕不过去的最好解法。
+
+4. **如果是系统 CA 包缺失**：
+   ```bash
+   sudo apt-get install --reinstall ca-certificates && sudo update-ca-certificates
+   ```
+
+**不要在生产环境用 `curl -k`（`--insecure`）。** 它会关闭证书校验，只能临时用来确认问题确实出在证书上，不能作为修复方案，否则会暴露在中间人攻击下。
+
+内部 CA 证书一般可以向你们的安全或运维团队要。如果你把 `openssl s_client` 输出里的 issuer 和证书链部分贴给我，我可以帮你判断具体是哪一种原因。

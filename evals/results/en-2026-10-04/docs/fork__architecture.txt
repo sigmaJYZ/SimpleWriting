@@ -1,0 +1,7 @@
+Sqlpipe moves data from Postgres to S3 in three stages. Each stage runs as its own process and passes work to the next.
+
+The reader opens a connection to Postgres and streams rows in batches. It reads one batch at a time, so memory use stays low.
+
+The converter receives each batch and turns it into a Parquet row group (a block of columnar data). It maps Postgres column types to Parquet types and writes the group to a buffer.
+
+The uploader takes the buffered data and writes it to S3 as a multipart object. It sends each part on its own. If a part fails, the uploader retries that part and does not restart the whole object. When all parts succeed, it completes the upload.

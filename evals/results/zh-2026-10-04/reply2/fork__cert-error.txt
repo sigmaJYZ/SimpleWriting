@@ -1,0 +1,30 @@
+这个错误表示 curl 无法把服务器证书追溯到它信任的根证书（CA，签发证书的机构）。内部 API 通常用公司自建 CA 签发证书，而你机器的系统信任库里没有这个 CA。
+
+另外两个原因也会出现同样的报错。一是服务器没有发送中间证书。二是公司代理在中途替换了证书，用来检查流量。
+
+先用下面的命令查看服务器实际发送的证书链，确认是哪种情况：
+
+```bash
+openssl s_client -connect api.internal.example.com:443 -showcerts </dev/null
+```
+
+请把域名换成你们的真实域名。如果输出里只有一张证书，并且 `Verify return code` 是 21，说明服务器没有发送中间证书，必须让运维修改服务器配置。如果证书链完整，但签发者是公司名称，说明缺的是公司根证书。
+
+如果缺的是公司根证书，先向 IT 或运维索取 PEM 格式的根证书文件。然后你可以只对单次请求指定它：
+
+```bash
+curl --cacert /path/to/company-root-ca.pem https://api.internal.example.com/
+```
+
+如果希望所有程序都信任它，在 Ubuntu 或 WSL 里把证书安装到系统信任库。文件扩展名必须是 `.crt`：
+
+```bash
+sudo cp company-root-ca.pem /usr/local/share/ca-certificates/company-root-ca.crt
+sudo update-ca-certificates
+```
+
+你也可以设置环境变量 `CURL_CA_BUNDLE`，让 curl 默认使用某个证书文件。
+
+不要把 `curl -k` 当作长期方案。它会关闭证书验证，请求可能被中间人窃听或篡改。只在临时排查时使用它，并且不要用它发送密码或令牌。
+
+如果你贴出 `openssl s_client` 的输出，我可以帮你判断具体属于哪种情况。
