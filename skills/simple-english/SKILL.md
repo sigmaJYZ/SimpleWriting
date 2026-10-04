@@ -16,7 +16,7 @@ description: |
 license: MIT
 compatibility: claude-code cursor codex gemini-cli opencode
 metadata:
-  version: "2.1.1.2"
+  version: "2.1.1.3"
   standard: ASD-STE100 Issue 9 (2025-01-15)
 ---
 

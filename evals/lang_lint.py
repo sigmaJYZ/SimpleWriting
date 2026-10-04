@@ -24,19 +24,23 @@ Usage:
   cat text.md | python3 lang_lint.py -
   python3 lang_lint.py --self-test
 """
+import bisect
 import json
+import pathlib
 import re
 import sys
+import time
 from collections import Counter
 
 import ste_lint
 
-HAN = "㐀-䶿一-鿿"
+HAN = "\u3400-\u4dbf\u4e00-\u9fff"  # CJK Extension A and the main CJK block
 _HAN = re.compile(f"[{HAN}]")
-_KANA = re.compile("[぀-ヿ]")
-_CYRILLIC = re.compile("[Ѐ-ӿ]")
-_LATIN = re.compile("[A-Za-zÀ-ɏ]")
+_KANA = re.compile("[\u3040-\u30ff]")  # hiragana and katakana
+_CYRILLIC = re.compile("[\u0400-\u04ff]")
+_LATIN = re.compile("[A-Za-z\u00c0-\u024f]")  # with the accented Latin letters
 _WORD = re.compile(r"[^\W\d_]+")
+_PLACEHOLDERS = frozenset(("codespan", "url"))  # what ste_lint.strip_code leaves for code and links
 
 # English function words that other Latin-script languages rarely use.
 # "a" and "in" are left out: Spanish, Italian, and German use them too.
@@ -74,7 +78,7 @@ def language(text):
         return "zh"
     if len(_CYRILLIC.findall(body)) > latin:
         return "cyrillic"
-    tokens = _WORD.findall(body.lower())
+    tokens = [token for token in _WORD.findall(body.lower()) if token not in _PLACEHOLDERS]
     if len(tokens) < MIN_TOKENS:
         return "en"
     share = sum(token in ENGLISH_WORDS for token in tokens) / len(tokens)
@@ -85,18 +89,28 @@ def units(sentence):
     return len(UNIT.findall(sentence))
 
 
+def _breaks(text):
+    """The offsets of the line breaks. A line number is then one binary search, not a scan of the text."""
+    return [m.start() for m in re.finditer("\n", text)]
+
+
+def _line(breaks, offset):
+    return bisect.bisect_left(breaks, offset) + 1
+
+
 def zh_sentences(body):
     """(line, sentence) pairs. A blank line or a list item starts a new unit."""
     out, block, first = [], [], 0
 
     def flush():
         text, pos = "\n".join(block), 0
+        breaks = _breaks(text)
         for m in list(_ZH_SPLIT.finditer(text)) + [None]:
             end = m.start() if m else len(text)
             piece = text[pos:end]
             if units(piece) >= 2:
                 lead = len(piece) - len(piece.lstrip())
-                out.append((first + text.count("\n", 0, pos + lead), piece.strip()))
+                out.append((first + _line(breaks, pos + lead) - 1, piece.strip()))
             pos = m.end() if m else end
         block.clear()
 
@@ -125,8 +139,9 @@ def _zh(text, text_type):
             hits.append({"category": "sentence_over_limit", "text": shown, "line": line})
 
     def scan(category, rx, source):
+        breaks = _breaks(source)
         for m in rx.finditer(source):
-            hits.append({"category": category, "text": m.group(0).strip(), "line": source.count("\n", 0, m.start()) + 1})
+            hits.append({"category": category, "text": m.group(0).strip(), "line": _line(breaks, m.start())})
 
     scan("semicolon", _ZH_SEMICOLON, body)
     scan("em_dash", ste_lint.DASH, body.replace("——", "—"))  # the Chinese dash is two characters and one mark
@@ -224,6 +239,15 @@ def self_test():
     for fixture in (ste_lint.SLOP_FIXTURE, ste_lint.CLEAN_FIXTURE, ste_lint.DASH_FIXTURE):
         assert lint(fixture, "procedural") == ste_lint.lint(fixture, "procedural")
         assert lint_detail(fixture, "procedural") == ste_lint.lint_detail(fixture, "procedural")
+    # A text with many code spans is still English: the placeholders of strip_code are not its words.
+    assert language("Run `a` then `b`. " * 40 + "The tool reads the file and writes it to the store for you.") == "en"
+    # Every English output in the repository takes the upstream path. A file that starts with "[" or "{" is a log.
+    results = pathlib.Path(__file__).resolve().parent / "results"
+    for f in sorted(results.rglob("*.txt")):
+        if f.parent.name == "conditions" or f.relative_to(results).parts[0].startswith("zh-"):
+            continue
+        output = f.read_text(encoding="utf-8")
+        assert output.lstrip()[:1] in ("[", "{") or language(output) == "en", f
     # The English word lists hit Italian words. The gate removes those hits and keeps the length limit.
     assert ste_lint.lint(IT_CLEAN, "descriptive")["violations"]["slop_word"] >= 4
     assert language(IT_CLEAN) == "other" and lint(IT_CLEAN, "descriptive")["violations_total"] == 0
@@ -233,6 +257,10 @@ def self_test():
     # The dash is grammar in Russian.
     assert language(RU_CLEAN) == "cyrillic" and lint(RU_CLEAN, "descriptive")["violations_total"] == 0
     assert language("これは設定ファイルです。サービスを再起動してください。") == "other"
+    # A large file with a hit on each line stays fast: the hook has a limit of 10 seconds.
+    started = time.perf_counter()
+    assert len(lint_detail("\n".join(["重试失败的上传；然后写日志。"] * 30000), "descriptive")) == 30000
+    assert time.perf_counter() - started < 3, "the time must not grow with the square of the size"
     print("self-test OK:", bad["violations_total"], "hits in the Chinese fixture, 0 in the clean ones")
 
 

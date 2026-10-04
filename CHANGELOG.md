@@ -2,6 +2,20 @@
 
 Each entry names the version, the date, and the measured effect where one exists.
 
+## 2.1.1.3, 2026-10-04
+
+- Fixed: the Chinese check was slow on a large file. A file of 1 MB with a
+  hit on each line took 9 seconds, and the hook has a limit of 10 seconds.
+  A line number is now one binary search, and the same file takes 0.3
+  seconds.
+- Fixed: a text with many code spans counted as not English in some cases,
+  because the placeholders for code counted as words of the text. They do
+  not count now.
+- Added: `.github/README.md`, a short README for the fork. GitHub shows it
+  before the upstream `README.md`, which stays in place.
+- Added: tests for files that the hook cannot read, and a self-test that
+  sends every English output in the repository through the language gate.
+
 ## 2.1.1.2, 2026-10-04
 
 - Added: a language layer in `prompts/language-layer.md`. A second

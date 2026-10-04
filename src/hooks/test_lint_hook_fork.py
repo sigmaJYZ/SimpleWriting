@@ -88,6 +88,22 @@ def test_an_excluded_path_stays_excluded_for_chinese():
         path = write(d, ZH_LONG)
         assert run(post(path), env={"SIMPLE_ENGLISH_LINT_EXCLUDE": f"{d}/*.md"})[0] == 0
 
+def test_a_file_that_the_hook_cannot_read_never_blocks():
+    assert run(post("/nonexistent/folder/notes.md"))[0] == 0
+    with tempfile.TemporaryDirectory() as d:
+        assert run(post(write(d, "")))[0] == 0, "an empty file"
+        path = pathlib.Path(d, "gbk.md")
+        path.write_bytes(("词" * 60 + "。").encode("gbk"))
+        assert run(post(str(path)))[0] == 0, "a file that is not UTF-8"
+        pathlib.Path(d, "folder.md").mkdir()
+        assert run(post(str(pathlib.Path(d, "folder.md"))))[0] == 0, "a folder with a .md name"
+
+def test_an_edit_with_text_that_is_not_in_the_file_is_judged_on_the_whole_file():
+    with tempfile.TemporaryDirectory() as d:
+        path = write(d, ZH_LONG + "\n")
+        code, out, err = run(post(path, old_string="旧", new_string="这段文字不在文件里。"))
+    assert code == 2 and "line 1, sentence_over_limit" in err, (code, err)
+
 def test_stop_flags_a_chinese_opener_closer_and_slop_word():
     msg = stop("好的！这个接口是幂等的，这一点至关重要。重试是安全的。希望这对你有帮助！")
     assert "opener" in msg and "closer" in msg and "slop" in msg, msg

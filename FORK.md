@@ -15,6 +15,7 @@ Upstream owns the files that it ships. The fork keeps its work in files of its o
 | `evals/run_layer_bench.py` | The benchmark of the layer. The Chinese questions are in `evals/reply_scenarios_zh.json` and `evals/scenarios_zh.json`. |
 | `evals/calibrate_zh.py` | The source of the Chinese sentence limits. |
 | `.github/workflows/check-fork.yml` | The tests of the fork. |
+| `.github/README.md` | The short README of the fork. GitHub shows a README in `.github` before the one in the root folder, so the upstream `README.md` stays in place. |
 
 The fork changes these upstream files:
 
@@ -64,7 +65,7 @@ The gate uses two measurements:
 - Chinese: the text has one Han character or more for each ten Latin letters.
 - English: six percent or more of the words are English function words, such as "the", "and", and "of".
 
-A text with fewer than 30 words counts as English, which is the upstream behavior. The repository holds 355 English prose outputs of 30 words or more under `evals/results/`. The lowest share of function words in them was 10 percent. In translated pages in French, Italian, Spanish, Portuguese, and Polish, the highest share was 1.3 percent.
+A text with fewer than 30 words counts as English, which is the upstream behavior. Upstream ships 355 English prose outputs of 30 words or more under `evals/results/`. The lowest share of function words in them was 10 percent. In a test on translated documentation pages in French, Italian, Spanish, Portuguese, and Polish, the highest share was 1.3 percent. The self-test of `evals/lang_lint.py` makes sure that every English output in the repository takes the English path.
 
 One behavior differs from upstream. For a file that is not English, an `Edit` is judged on the lines that the edit touched. The hook message lists 12 hits at most, from the top of the file down. In an old file with many hits, a check of the full file does not show a hit in the new text. A check of the touched lines shows it. A `Write` is judged on the full file. English files keep the upstream behavior: each hook run reads the full file.
 
@@ -85,7 +86,7 @@ The descriptive limit is the measured value. The procedural limit rounds 32 up t
 
 ## Version
 
-The version of the fork is the upstream version plus one part for the fork revision. `2.1.1.2` is revision 2 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
+The version of the fork is the upstream version plus one part for the fork revision. For example, `2.1.1.3` is revision 3 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
 
 When the version string changes, Claude Code installs a new copy of the plugin. It installs nothing for an equal string. Change the version for each release of the fork. Five places hold it: `skills/simple-english/SKILL.md`, the three manifests, and the README badge. If they differ, `python3 evals/check_numbers.py` fails.
 
@@ -102,4 +103,4 @@ When the version string changes, Claude Code installs a new copy of the plugin. 
 - Four upstream checks have a Chinese form. The checks for contractions, the present perfect, and the "-ing" verb have none. The checks for modals, trailing conditions, and word rotation need the sense of a word, so the fork does not port them.
 - The language gate knows English, Chinese, and Cyrillic text. Every other language gets the same three checks.
 - The benchmark ran on one model at low effort.
-- Nobody ran the Codex hook of the fork. The entry in `.codex-plugin/hooks.json` copies the form of the upstream entry.
+- Nobody ran the Codex hook of the fork in a Codex session. The entry in `.codex-plugin/hooks.json` copies the form of the upstream entry. In the source of Codex 0.160.0, each hook command of a group adds its output to the context.
