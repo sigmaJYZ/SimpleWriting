@@ -18,7 +18,7 @@ In every language, the model writes the reply in the language of your message. I
 
 The fork was tested with Spanish, German, French, Italian, Portuguese, Russian, Japanese, and Korean. In each of them, the replies and the documents came back in the language of the request.
 
-The writing check does not apply the English word lists to these languages. It permits the dash in Russian and Ukrainian, where the dash is standard punctuation. The sentence limit counts words, so it does not count a language with no spaces between words, such as Japanese.
+The writing check does not apply the English word lists to these languages. It permits the dash in Russian and Ukrainian, where the dash is standard punctuation. It reads `;` in Greek as the question mark, and it knows the full stop of other scripts, such as `।` in Hindi. The sentence limit counts words, so it does not count a language with no spaces between words, such as Japanese. A text of fewer than 30 words with no accented letter can count as English.
 
 Chinese has a form of its own because its sentences have no spaces and its punctuation is different. The other languages share one short set of rules, because the original rules fit them with little change.
 

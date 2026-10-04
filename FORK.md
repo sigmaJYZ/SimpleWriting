@@ -1,6 +1,6 @@
 # Fork notes
 
-This repository, SimpleWriting, is a fork of [AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish). The fork makes the upstream rules and checks work for Chinese text. It also stops false hits on text in other languages. The fork takes upstream releases, and it sends nothing back to upstream.
+This repository, SimpleWriting, is a fork of [AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish). The fork makes the upstream rules and checks work in other languages. English text keeps the upstream behavior. Chinese text has its own form of the rules and its own checks. Text in any other language gets the rules that do not depend on English grammar, and the checks that do not read English words. The fork takes upstream releases, and it sends nothing back to upstream.
 
 The marketplace and the plugin have the name `simple-writing`, and the plugin has an output style of the same name. The skill, the upstream output style, the hook scripts, and the hook messages keep the upstream name `simple-english`. A merge of an upstream release stays small that way.
 
@@ -25,7 +25,7 @@ The fork changes these upstream files:
 
 - `README.md`: the fork has its own README at this path. The upstream README has the name `README.upstream.md`.
 - `evals/check_numbers.py`: one line, the path of the README that holds the published numbers.
-- The five manifest files: the names `simple-writing` and `Simple Writing`, the hook commands, and the status messages.
+- The five manifest files: the names `simple-writing` and `Simple Writing`, the description, the links to this repository, the owner of the marketplace, the hook commands, and the status messages. The author field keeps the name of the original author.
 - The five places that hold the version. See "Version".
 - `CHANGELOG.md`: one entry for each release of the fork.
 - `evals/ste_lint.py` and `src/hooks/test_lint_hook.py`: the sentence split at `。`, `！`, and `？` from release 2.1.2.
@@ -60,18 +60,24 @@ For other languages, the layer gives one short paragraph. It names no word lists
 | English | All upstream checks, with no change. |
 | Chinese | Sentence length in units, semicolons, dashes, and filler words. |
 | Russian and other Cyrillic text | Sentence length in words, and semicolons. The dash is standard punctuation in Russian. |
+| Greek | Sentence length in words, and dashes. In Greek, `;` is the question mark. |
 | Any other language | Sentence length in words, semicolons, and dashes. |
 
 The fork adds no check of its own. Each Chinese check is an upstream check that has a Chinese form. The reply check is also the upstream check: dashes, bold, headers, list items, filler words, openers, and closers. The fork adds the Chinese openers, closers, and filler words to it. A Cyrillic reply keeps its dashes.
 
 The English word lists do not run on other languages, because they hit normal words there. Examples are `utilizzare` in Italian, `utilizar` and `realmente` in Spanish, and `navigateur` in French.
 
-The gate uses two measurements:
+The upstream sentence split knows `.`, `!`, and `?`. Some scripts end a sentence with a mark of their own, for example `।` in Hindi and `۔` in Urdu. Without that mark, a paragraph counts as one long sentence. The gate knows eight such marks: the full stop of Hindi and Bengali, Urdu, Armenian, Amharic, Burmese, and Khmer, and the question mark of Arabic and of Greek.
+
+The gate uses three measurements:
 
 - Chinese: the text has one Han character or more for each ten Latin letters.
+- Script: the text has more Cyrillic letters, or more Greek letters, than Latin letters. Kana among the Han characters shows Japanese text.
 - English: six percent or more of the words are English function words, such as "the", "and", and "of".
 
-A text with fewer than 30 words counts as English, which is the upstream behavior. Upstream ships 355 English prose outputs of 30 words or more under `evals/results/`. The lowest share of function words in them was 10 percent. In a test on translated documentation pages in French, Italian, Spanish, Portuguese, and Polish, the highest share was 1.3 percent. The self-test of `evals/lang_lint.py` makes sure that every English output in the repository takes the English path.
+A text with fewer than 30 words says little about its language, so the share of function words does not decide. Such a text counts as English, which is the upstream behavior, with one exception. If it has more letters that English does not use than English function words, it is not English. Those letters are the accented Latin letters and the letters of other scripts.
+
+Upstream ships 355 English prose outputs of 30 words or more under `evals/results/`. The lowest share of function words in them was 10 percent. In a test on translated documentation pages in French, Italian, Spanish, Portuguese, and Polish, the highest share was 1.3 percent. The self-test of `evals/lang_lint.py` makes sure that every English output in the repository takes the English path.
 
 One behavior differs from upstream. For a file that is not English, an `Edit` is judged on the lines that the edit touched. The hook message lists 12 hits at most, from the top of the file down. In an old file with many hits, a check of the full file does not show a hit in the new text. A check of the touched lines shows it. A `Write` is judged on the full file. English files keep the upstream behavior: each hook run reads the full file.
 
@@ -92,7 +98,7 @@ The descriptive limit is the measured value. The procedural limit rounds 32 up t
 
 ## Version
 
-The version of the fork is the upstream version plus one part for the fork revision. For example, `2.1.1.4` is revision 4 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
+The version of the fork is the upstream version plus one part for the fork revision. For example, `2.1.1.5` is revision 5 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
 
 When the version string changes, Claude Code installs a new copy of the plugin. It installs nothing for an equal string. Change the version for each release of the fork. Five places hold it: `skills/simple-english/SKILL.md`, the three manifests, and the badge in `README.upstream.md`. If they differ, `python3 evals/check_numbers.py` fails.
 
@@ -101,7 +107,7 @@ When the version string changes, Claude Code installs a new copy of the plugin. 
 1. Get the release: `git fetch upstream`, then `git merge upstream/main`.
 2. Git reports a conflict in `README.md`, because the fork has its own README there. Keep the README of the fork: `git checkout --ours README.md`.
 3. Take the new upstream README: `git show upstream/main:README.md > README.upstream.md`.
-4. For each version conflict, take the upstream version and add `.1`. Put the same version on the badge in `README.upstream.md`. In a manifest, keep the names of the fork.
+4. For each version conflict, take the upstream version and add `.1`. Put the same version on the badge in `README.upstream.md`. In a manifest, keep the names, the description, the links, and the owner of the fork.
 5. Read the upstream changes to `prompts/system-prompt.md`. If a rule changed, change `prompts/language-layer.md` to agree with it. Then run `node src/hooks/build-style.js`.
 6. Run the upstream tests and the tests of the fork. The two workflow files in `.github/workflows/` list the commands.
 7. Add an entry to `CHANGELOG.md`, then push.
@@ -109,7 +115,9 @@ When the version string changes, Claude Code installs a new copy of the plugin. 
 ## Limits
 
 - Four upstream checks have a Chinese form. The checks for contractions, the present perfect, and the "-ing" verb have none. The checks for modals, trailing conditions, and word rotation need the sense of a word, so the fork does not port them.
-- The language gate knows English, Chinese, and Cyrillic text. Every other language gets the same three checks.
+- The language gate knows English, Chinese, Cyrillic, and Greek text. Every other language gets the same three checks.
+- A text with fewer than 30 words and no accented letter counts as English, so the English word lists run on it. In a test on windows of 12 words from real text, the lists hit 2.0 percent of the Italian windows, mostly at `utilizzare`. They hit less than 1 percent of the windows in French, Portuguese, Spanish, German, and Polish. Before release 2.1.1.5, the numbers were 3.6 percent for Italian and 1.8 percent for Portuguese. The texts of that test are not in the repository.
 - The benchmark ran on one model at low effort. Only English and Chinese have a benchmark in the repository.
 - Spanish, German, French, Italian, Portuguese, Russian, Japanese, and Korean had a small test: four questions and two writing tasks in each language. The outputs are not in the repository.
+- The checks ran on one short sample in each of 15 languages: Greek, Hindi, Urdu, Arabic, Armenian, Hebrew, Korean, Thai, Dutch, Danish, Swedish, Polish, Turkish, Indonesian, and Vietnamese. The samples were written for the test, and not by native speakers. The self-test holds a Greek sample and a Hindi sample.
 - The Codex path ran in one session of Codex 0.160.0. The two session hooks ran, and the model had the rules and the layer in its context. Codex runs the session hooks only, so the writing check after a file edit is for Claude Code.

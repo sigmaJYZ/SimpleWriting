@@ -10,6 +10,11 @@ IT = ("Per utilizzare il comando, è necessario utilizzare un file di configuraz
       "Gli utenti possono utilizzare una chiave diversa per ogni ambiente, e il navigatore mostra realmente lo stato.\n")
 RU = ("Vue — это фреймворк для создания пользовательских интерфейсов. Он создан на стандартах HTML, CSS и JavaScript.\n"
       "Компонент — это часть интерфейса, и её можно использовать много раз в одном приложении без изменений.\n")
+EL = ("Πώς εγκαθιστώ το πρόγραμμα; Εκτελέστε την εντολή εγκατάστασης στο τερματικό. Το πρόγραμμα αντιγράφει τους πίνακες "
+      "της βάσης δεδομένων στο S3. Χρειάζεται ένα αρχείο ρυθμίσεων. Τι γίνεται αν τα διαπιστευτήρια δεν είναι σωστά; "
+      "Η υπηρεσία απορρίπτει τη μεταφόρτωση και επιστρέφει ένα σφάλμα δικαιωμάτων.\n")
+HI = ("यह प्रोग्राम Postgres की तालिकाओं को S3 पर कॉपी करता है। इसे एक कॉन्फ़िगरेशन फ़ाइल चाहिए। यदि क्रेडेंशियल सही नहीं हैं, "
+      "तो सेवा अपलोड को अस्वीकार कर देती है। इसके बाद सेवा अनुमति की त्रुटि लौटाती है। पहले कॉन्फ़िगरेशन फ़ाइल खोलें।\n")
 
 def run(event, env=None):
     r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(event), capture_output=True, text=True,
@@ -82,6 +87,20 @@ def test_a_russian_dash_gets_no_hit():
     with tempfile.TemporaryDirectory() as d:
         assert run(post(write(d, RU)))[0] == 0
 
+def test_a_greek_question_mark_is_no_semicolon():
+    with tempfile.TemporaryDirectory() as d:
+        code, out, err = run(post(write(d, EL)))
+        assert code == 0, (code, err)
+        code, out, err = run(post(write(d, "Πώς εγκαθιστώ το πρόγραμμα; Εκτελέστε την εντολή.\n", "short.md")))
+    assert code == 0, (code, err)
+
+def test_the_full_stop_of_another_script_ends_a_sentence():
+    with tempfile.TemporaryDirectory() as d:
+        code, out, err = run(post(write(d, HI)))
+        assert code == 0, (code, err)
+        code, out, err = run(post(write(d, "यह प्रोग्राम " + "तालिकाओं और " * 13 + "फ़ाइलों को कॉपी करता है। " + HI, "long.md")))
+    assert code == 2 and "has 1 writing hit(s) (other)" in err and "line 1, sentence_over_limit" in err, (code, err)
+
 def test_an_excluded_path_stays_excluded_for_chinese():
     with tempfile.TemporaryDirectory() as d:
         assert run(post(write(pathlib.Path(d, ".claude", "memory"), ZH_LONG, "MEMORY.md")))[0] == 0
@@ -114,6 +133,13 @@ def test_stop_counts_a_chinese_dash_once():
 def test_stop_permits_the_dash_in_a_russian_reply():
     assert stop("Vue — это фреймворк для интерфейсов. Компонент — это часть интерфейса, и её можно использовать много раз.") == ""
     assert "em-dash" in stop("The deploy failed — the disk was full.")
+
+def test_stop_runs_no_english_word_list_on_a_short_reply_in_another_language():
+    assert stop("Sí, es seguro. Puedes utilizar el mismo comando y realmente no cambia nada.") == ""
+    assert stop("Sim, é seguro. Você pode utilizar o mesmo comando para as duas tabelas.") == ""
+    assert stop("Oui, c'est sûr. Le service est performant et le navigateur affiche le résultat.") == ""
+    assert "1 slop word(s)" in stop("Yes, it is safe. You can leverage the same command.")
+    assert "1 slop word(s)" in stop("Robust fix.")
 
 def test_stop_is_silent_on_a_good_chinese_reply():
     assert stop("重试是安全的，因为这个接口是幂等的（重复执行的结果相同）。你不需要改脚本。") == ""

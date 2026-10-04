@@ -2,6 +2,29 @@
 
 Each entry names the version, the date, and the measured effect where one exists.
 
+## 2.1.1.5, 2026-10-04
+
+- Fixed: in a Greek text, the file check reported each question mark as a
+  semicolon. In Greek, `;` is the question mark. The check reads it as one
+  now, and a question ends its sentence.
+- Fixed: a paragraph in Hindi, Urdu, or Armenian counted as one long
+  sentence, because the full stop of those scripts did not end a sentence.
+  The check knows eight sentence marks of other scripts now. One of them is
+  the Arabic question mark.
+- Fixed: a text of fewer than 30 words counted as English in every case, so
+  the English word lists hit short replies in other languages. If a short
+  text has more letters that English does not use than English function
+  words, it is not English now. In a test on windows of 12 words from real text,
+  the lists hit 2.0 percent of the Italian windows, down from 3.6 percent.
+  They hit 0.6 percent of the Portuguese ones, down from 1.8 percent. Each
+  of 20,000 English windows stayed on the English path. The texts of that
+  test are not in the repository.
+- Changed: the manifests describe the fork. The description says that the
+  model writes in the language of the user. The links point to
+  `sigmaJYZ/SimpleWriting`, and the owner of the marketplace is the owner
+  of the fork. The author field keeps the name of the original author.
+- Changed: `FORK.md` gives the same weight to each group of languages.
+
 ## 2.1.1.4, 2026-10-04
 
 - Changed: the repository has the name SimpleWriting, and the marketplace

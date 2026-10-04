@@ -11,7 +11,9 @@ to the checks that fit its language:
   character, or one Latin word, number, or code span.
 - Any other language: only the ste_lint checks that do not read English
   words. The English word lists hit normal words in other languages, for
-  example "utilizzare" in Italian and "navigateur" in French.
+  example "utilizzare" in Italian and "navigateur" in French. The sentence
+  marks of other scripts end a sentence, for example the Hindi full stop.
+  In Greek, ";" is the question mark, so it is no semicolon there.
 
 The Chinese limits come from parallel text, not from a standard. On 12 pages
 of the Vue documentation, 20 English words matched 32 units and 25 words
@@ -38,19 +40,36 @@ HAN = "\u3400-\u4dbf\u4e00-\u9fff"  # CJK Extension A and the main CJK block
 _HAN = re.compile(f"[{HAN}]")
 _KANA = re.compile("[\u3040-\u30ff]")  # hiragana and katakana
 _CYRILLIC = re.compile("[\u0400-\u04ff]")
+_GREEK = re.compile("[\u0370-\u03ff\u1f00-\u1fff]")
 _LATIN = re.compile("[A-Za-z\u00c0-\u024f]")  # with the accented Latin letters
 _WORD = re.compile(r"[^\W\d_]+")
+# A letter that English does not use: an accented Latin letter, or a letter of another script.
+# The Spanish marks at the start of a question and of an exclamation count too.
+_FOREIGN = re.compile(r"[^\W\d_a-zA-Z]|[¿¡]")
 _PLACEHOLDERS = frozenset(("codespan", "url"))  # what ste_lint.strip_code leaves for code and links
 
 # English function words that other Latin-script languages rarely use.
 # "a" and "in" are left out: Spanish, Italian, and German use them too.
 ENGLISH_WORDS = frozenset("the and of to is that for with you this are be it as on not or can when if".split())
 ENGLISH_SHARE = 0.06  # English prose is far over this share, other languages are far under it
-MIN_TOKENS = 30  # a shorter text does not say which language it is, so it counts as English
+MIN_TOKENS = 30  # a shorter text says little about its language, so the share of function words does not decide
 ZH_RATIO = 0.1  # Han characters per Latin letter: Chinese technical text keeps many English names
 
 UNIVERSAL = ("sentence_over_limit", "semicolon", "em_dash")
 CYRILLIC = ("sentence_over_limit", "semicolon")  # the dash is standard punctuation in Russian and Ukrainian
+# The sentence marks of other scripts, as the Western marks that the split of ste_lint knows.
+# One character stands for one, so every line number holds.
+_MARKS = str.maketrans({
+    "\u0964": ".",  # Devanagari and Bengali: Hindi, Marathi, Nepali, Bengali
+    "\u06d4": ".",  # Urdu
+    "\u0589": ".",  # Armenian
+    "\u1362": ".",  # Ethiopic: Amharic
+    "\u104b": ".",  # Burmese
+    "\u17d4": ".",  # Khmer
+    "\u061f": "?",  # Arabic, Persian, and Urdu
+    "\u037e": "?",  # Greek
+})
+_GREEK_MARKS = {**_MARKS, ord(";"): "?"}  # in Greek, ";" is the question mark
 
 UNIT = re.compile(f"[{HAN}]|[A-Za-z0-9][A-Za-z0-9_.+/#'-]*")
 ZH_LIMITS = {"procedural": 35, "descriptive": 40}
@@ -69,7 +88,7 @@ _LIST_ITEM = re.compile(r"\s*([-*+]|\d+[.)])\s+")
 
 
 def language(text):
-    """'en', 'zh', 'cyrillic', or 'other'. An unclear text counts as English, the upstream behavior."""
+    """'en', 'zh', 'cyrillic', 'greek', or 'other'. An unclear text counts as English, the upstream behavior."""
     body = ste_lint.strip_code(text)
     han, latin = len(_HAN.findall(body)), len(_LATIN.findall(body))
     if len(_KANA.findall(body)) > han * 0.2:
@@ -78,11 +97,14 @@ def language(text):
         return "zh"
     if len(_CYRILLIC.findall(body)) > latin:
         return "cyrillic"
+    if len(_GREEK.findall(body)) > latin:
+        return "greek"
     tokens = [token for token in _WORD.findall(body.lower()) if token not in _PLACEHOLDERS]
+    english = sum(token in ENGLISH_WORDS for token in tokens)
     if len(tokens) < MIN_TOKENS:
-        return "en"
-    share = sum(token in ENGLISH_WORDS for token in tokens) / len(tokens)
-    return "en" if share >= ENGLISH_SHARE else "other"
+        # A short text is English unless it has more letters that English does not use than English function words.
+        return "other" if len(_FOREIGN.findall(body)) > english else "en"
+    return "en" if english / len(tokens) >= ENGLISH_SHARE else "other"
 
 
 def units(sentence):
@@ -149,6 +171,11 @@ def _zh(text, text_type):
     return sorted(hits, key=lambda h: h["line"]), lengths
 
 
+def _western(text, lang):
+    """The text with the sentence marks of its script written as Western marks."""
+    return text.translate(_GREEK_MARKS if lang == "greek" else _MARKS)
+
+
 def _totals(report, lang):
     total = sum(report["violations"].values())
     report.update(language=lang, violations_total=total,
@@ -172,7 +199,7 @@ def lint(text, text_type, lang=None):
             "longest_sentence_words": max(lengths, default=0),
             "violations": {c: found[c] for c in ZH_CATEGORIES},
         }, lang)
-    report = ste_lint.lint(text, text_type)
+    report = ste_lint.lint(_western(text, lang), text_type)
     keep = CYRILLIC if lang == "cyrillic" else UNIVERSAL
     report["violations"] = {c: report["violations"][c] for c in keep}
     return _totals(report, lang)
@@ -185,7 +212,7 @@ def lint_detail(text, text_type, lang=None):
     if lang == "zh":
         return _zh(text, text_type)[0]
     keep = CYRILLIC if lang == "cyrillic" else UNIVERSAL
-    return [h for h in ste_lint.lint_detail(text, text_type) if h["category"] in keep]
+    return [h for h in ste_lint.lint_detail(_western(text, lang), text_type) if h["category"] in keep]
 
 
 def reader_check(text):
@@ -216,6 +243,15 @@ Gli utenti possono utilizzare una chiave diversa per ogni ambiente, e il navigat
 
 RU_CLEAN = """Vue — это фреймворк для создания пользовательских интерфейсов. Он создан на стандартах HTML, CSS и JavaScript.
 Компонент — это часть интерфейса, и её можно использовать много раз в одном приложении без изменений.
+"""
+
+EL_CLEAN = """Πώς εγκαθιστώ το πρόγραμμα; Εκτελέστε την εντολή εγκατάστασης στο τερματικό. Το πρόγραμμα αντιγράφει τους πίνακες
+της βάσης δεδομένων στο S3. Χρειάζεται ένα αρχείο ρυθμίσεων. Τι γίνεται αν τα διαπιστευτήρια δεν είναι σωστά;
+Η υπηρεσία απορρίπτει τη μεταφόρτωση και επιστρέφει ένα σφάλμα δικαιωμάτων.
+"""
+
+HI_CLEAN = """यह प्रोग्राम Postgres की तालिकाओं को S3 पर कॉपी करता है। इसे एक कॉन्फ़िगरेशन फ़ाइल चाहिए। यदि क्रेडेंशियल सही नहीं हैं,
+तो सेवा अपलोड को अस्वीकार कर देती है। इसके बाद सेवा अनुमति की त्रुटि लौटाती है। पहले कॉन्फ़िगरेशन फ़ाइल खोलें।
 """
 
 
@@ -262,6 +298,25 @@ def self_test():
     # The dash is grammar in Russian.
     assert language(RU_CLEAN) == "cyrillic" and lint(RU_CLEAN, "descriptive")["violations_total"] == 0
     assert language("これは設定ファイルです。サービスを再起動してください。") == "other"
+    # In Greek, ";" is the question mark. It ends a sentence, and it is no semicolon.
+    assert ste_lint.lint(EL_CLEAN, "descriptive")["violations"]["semicolon"] == 2
+    greek = lint(EL_CLEAN, "descriptive")
+    assert (greek["language"], greek["sentences"], greek["violations_total"]) == ("greek", 6, 0), greek
+    assert language("Τι είναι αυτό; Ένα αρχείο.") == "greek" and lint_detail("Τι είναι αυτό; Ένα αρχείο.", "descriptive") == []
+    # The full stop of another script ends a sentence. Without it, a paragraph counts as one long sentence.
+    assert ste_lint.lint(HI_CLEAN, "descriptive")["violations"]["sentence_over_limit"] == 1
+    hindi = lint(HI_CLEAN, "descriptive")
+    assert (hindi["language"], hindi["sentences"], hindi["violations_total"]) == ("other", 5, 0), hindi
+    for mark in _MARKS:
+        two = ("mot " * 15).strip() + chr(mark) + " " + ("mot " * 15).strip() + chr(mark)
+        assert ste_lint.lint(two, "descriptive")["violations"]["sentence_over_limit"] == 1, hex(mark)
+        assert lint(two, "descriptive", "other")["violations"]["sentence_over_limit"] == 0, hex(mark)
+    assert lint("mot; " * 3, "descriptive", "other")["violations"]["semicolon"] == 3, "a semicolon outside Greek is a semicolon"
+    # A short text is English unless it has more letters that English does not use than English function words.
+    assert language("Sí, puedes utilizar el mismo comando.") == "other" and language("네, 안전합니다.") == "other"
+    assert language("Você pode utilizar as duas opções.") == "other", "three accented letters, one English function word"
+    assert language("Renée said that it is the same file.") == "en", "one accented letter, four English function words"
+    assert language("Puedes utilizar el mismo comando.") == "en", "a short text with no such letter stays unclear"
     # A large file with a hit on each line stays fast: the hook has a limit of 10 seconds.
     started = time.perf_counter()
     assert len(lint_detail("\n".join(["重试失败的上传；然后写日志。"] * 30000), "descriptive")) == 30000

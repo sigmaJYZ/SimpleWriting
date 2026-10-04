@@ -1,13 +1,13 @@
 {
   "name": "simple-writing",
   "displayName": "Simple Writing",
-  "description": "Write plain, layman-readable English with the discipline of ASD-STE100 Simplified Technical English: short sentences, one word one meaning, active voice, condition before command, terms defined at first use.",
-  "version": "2.1.1.4",
+  "description": "Write plain text that a reader understands on one read, in the language of the user. It is a multilingual version of SimpleEnglish by AminBlg. It keeps the discipline of ASD-STE100 Simplified Technical English: short sentences, one word one meaning, active voice, condition before command, terms defined at first use.",
+  "version": "2.1.1.5",
   "author": {
     "name": "AminBlg"
   },
-  "homepage": "https://github.com/AminBlg/SimpleEnglish",
-  "repository": "https://github.com/AminBlg/SimpleEnglish",
+  "homepage": "https://github.com/sigmaJYZ/SimpleWriting",
+  "repository": "https://github.com/sigmaJYZ/SimpleWriting",
   "license": "MIT",
   "keywords": [
     "technical-writing",
