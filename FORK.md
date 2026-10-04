@@ -1,6 +1,8 @@
 # Fork notes
 
-This repository is a fork of [AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish). The fork makes the upstream rules and checks work for Chinese text. It also stops false hits on text in other languages. The fork takes upstream releases, and it sends nothing back to upstream.
+This repository, SimpleWriting, is a fork of [AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish). The fork makes the upstream rules and checks work for Chinese text. It also stops false hits on text in other languages. The fork takes upstream releases, and it sends nothing back to upstream.
+
+The plugin, the skill, and the output style keep the upstream name `simple-english`. With that name, the fork replaces the original plugin, and a merge of an upstream release stays small.
 
 Upstream owns the files that it ships. The fork keeps its work in files of its own, so that a merge of an upstream release has few conflicts.
 
@@ -16,6 +18,7 @@ Upstream owns the files that it ships. The fork keeps its work in files of its o
 | `evals/calibrate_zh.py` | The source of the Chinese sentence limits. |
 | `.github/workflows/check-fork.yml` | The tests of the fork. |
 | `.github/README.md` | The short README of the fork. GitHub shows a README in `.github` before the one in the root folder, so the upstream `README.md` stays in place. |
+| `.github/README.zh-CN.md` | The same README in Chinese. Each of the two files starts with a link to the other one. |
 
 The fork changes these upstream files:
 
@@ -103,4 +106,4 @@ When the version string changes, Claude Code installs a new copy of the plugin. 
 - Four upstream checks have a Chinese form. The checks for contractions, the present perfect, and the "-ing" verb have none. The checks for modals, trailing conditions, and word rotation need the sense of a word, so the fork does not port them.
 - The language gate knows English, Chinese, and Cyrillic text. Every other language gets the same three checks.
 - The benchmark ran on one model at low effort.
-- Nobody ran the Codex hook of the fork in a Codex session. The entry in `.codex-plugin/hooks.json` copies the form of the upstream entry. In the source of Codex 0.160.0, each hook command of a group adds its output to the context.
+- The Codex path ran in one session of Codex 0.160.0. The two session hooks ran, and the model had the rules and the layer in its context. Codex runs the session hooks only, so the writing check after a file edit is for Claude Code.
