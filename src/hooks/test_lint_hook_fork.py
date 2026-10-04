@@ -40,7 +40,7 @@ def test_the_upstream_suite_passes_through_the_fork_entry():
 def test_a_long_chinese_sentence_gets_a_hit_with_its_line():
     with tempfile.TemporaryDirectory() as d:
         code, out, err = run(post(write(d, "# 标题\n\n第一句很短。\n\n" + ZH_LONG + "\n")))
-    assert code == 2 and "writing hits (zh)" in err and "line 5, sentence_over_limit" in err, (code, err)
+    assert code == 2 and "writing hit(s) (zh)" in err and "line 5, sentence_over_limit" in err, (code, err)
 
 def test_a_chinese_file_gets_its_own_checks():
     text = "值得注意的是，这个步骤至关重要。\n\n我们对系统进行测试；然后重启——再看日志。\n"
@@ -49,7 +49,7 @@ def test_a_chinese_file_gets_its_own_checks():
     assert code == 2, (code, err)
     for hit in ("line 1, slop_word: 值得注意的是", "line 1, slop_word: 至关重要", "line 3, semicolon: ；", "line 3, em_dash: —"):
         assert hit in err, (hit, err)
-    assert "has 4 writing hits" in err, err
+    assert "has 4 writing hit(s)" in err, err
 
 def test_a_clean_chinese_file_passes():
     with tempfile.TemporaryDirectory() as d:
@@ -62,10 +62,10 @@ def test_an_edit_to_a_chinese_file_is_judged_on_the_lines_it_touched():
         assert run(post(path))[0] == 2, "a write is judged on the whole file"
         assert run(post(path, old_string="旧", new_string="新的一句很短。"))[0] == 0
         code, out, err = run(post(path, old_string="旧", new_string="新的长句" + ZH_LONG))
-        assert code == 2 and "has 1 writing hits" in err and "line 9, sentence_over_limit: 新的长句" in err, (code, err)
+        assert code == 2 and "has 1 writing hit(s)" in err and "line 9, sentence_over_limit: 新的长句" in err, (code, err)
         # A few words put inside a long sentence: the fragment is short, and the sentence is not.
         code, out, err = run(post(path, old_string="旧", new_string="新加的片段"))
-    assert code == 2 and "has 1 writing hits" in err and "line 11, sentence_over_limit" in err, (code, err)
+    assert code == 2 and "has 1 writing hit(s)" in err and "line 11, sentence_over_limit" in err, (code, err)
 
 def test_italian_words_get_no_english_hit():
     with tempfile.TemporaryDirectory() as d:
@@ -110,6 +110,10 @@ def test_stop_flags_a_chinese_opener_closer_and_slop_word():
 
 def test_stop_counts_a_chinese_dash_once():
     assert "1 em-dash(s)" in stop("重试是安全的——因为这个接口是幂等的。")
+
+def test_stop_permits_the_dash_in_a_russian_reply():
+    assert stop("Vue — это фреймворк для интерфейсов. Компонент — это часть интерфейса, и её можно использовать много раз.") == ""
+    assert "em-dash" in stop("The deploy failed — the disk was full.")
 
 def test_stop_is_silent_on_a_good_chinese_reply():
     assert stop("重试是安全的，因为这个接口是幂等的（重复执行的结果相同）。你不需要改脚本。") == ""

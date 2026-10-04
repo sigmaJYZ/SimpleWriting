@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { MAX_CHARS, buildLayer, layerPath } = require('./language-layer');
+const { STYLE, buildStyle } = require('./build-style');
 
 const SCRIPT = path.join(__dirname, 'language-layer.js');
 const REPO_ROOT = path.join(__dirname, '..', '..');
@@ -69,4 +70,26 @@ test('the two SessionStart hooks of plugin.json print the rules and then the lay
   assert.equal(commands.length, 2);
   assert.ok(commands[0].includes('simple-english-activate.js'));
   assert.ok(commands[1].includes('language-layer.js'));
+});
+
+test('the manifests give the plugin and its marketplace the name of the fork', () => {
+  const read = (file) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, file), 'utf8'));
+  const names = [
+    read('.claude-plugin/plugin.json').name,
+    read('.claude-plugin/marketplace.json').name,
+    read('.claude-plugin/marketplace.json').plugins[0].name,
+    read('.codex-plugin/plugin.json').name,
+    read('.agents/plugins/marketplace.json').name,
+    read('.agents/plugins/marketplace.json').plugins[0].name,
+  ];
+  assert.deepEqual(names, Array(6).fill('simple-writing'));
+});
+
+test('the output style of the fork is the upstream rule block and then the layer', () => {
+  // After a change to the upstream block or to the layer, run: node src/hooks/build-style.js
+  const style = fs.readFileSync(STYLE, 'utf8');
+  assert.equal(style, buildStyle());
+  assert.ok(style.includes('name: simple-writing'));
+  assert.ok(style.includes('THE REPLY'), 'the upstream rule block is missing');
+  assert.ok(style.includes('LANGUAGE LAYER OF THE SIMPLE ENGLISH SKILL'), 'the layer is missing');
 });

@@ -1,164 +1,59 @@
-<p align="center">
-  <strong>✈️ your AI writes like a LinkedIn post. make it write like a Boeing manual.</strong>
-</p>
+# SimpleWriting
 
-<p align="center">
-  An agent skill that makes LLMs write plain English with the discipline of <a href="https://www.asd-ste100.org/">ASD-STE100 Simplified Technical English</a>,<br>
-  the controlled language aerospace has used since 1983 so that a tired mechanic cannot misread an instruction.<br>
-  Layman-readable by default, STE-strict on request.
-</p>
+English | [简体中文](README.zh-CN.md)
 
-<p align="center">
-  <a href="evals/results/rebuild-2026-09-02/RESULTS.md"><img src="https://img.shields.io/badge/reply_defects-%E2%88%9295%25_measured-brightgreen?style=flat" alt="95% fewer visible reply defects, measured"></a>
-  <a href="evals/results/RESULTS.md"><img src="https://img.shields.io/badge/benchmarked_on-9_Claude_models-blueviolet?style=flat" alt="9 models benchmarked"></a>
-  <a href="https://agentskills.io"><img src="https://img.shields.io/badge/SKILL.md-open_standard-blue?style=flat" alt="Agent Skills"></a>
-  <a href="skills/simple-english/SKILL.md"><img src="https://img.shields.io/badge/version-2.1.1.3-blue?style=flat" alt="version 2.1.1.3"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat" alt="MIT"></a>
-  <a href="https://github.com/AminBlg/SimpleEnglish/stargazers"><img src="https://img.shields.io/github/stars/AminBlg/SimpleEnglish?style=flat&logo=github&color=yellow" alt="GitHub stars"></a>
-</p>
+SimpleWriting makes an AI agent write plain text that a reader understands on one read, in the language of the user. It is a multilingual version of [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) by AminBlg. The rules, the linter, and the benchmarks come from the original project. This fork makes them work in other languages.
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/97933?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-97933" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/97933/daily" alt="AminBlg%2FSimpleEnglish | Trendshift" width="250" height="55"/></a>
-</p>
+[`README.upstream.md`](README.upstream.md) is the README of the original. It gives the rules, the benchmarks, and the answers to common questions.
 
-Works in every agent that reads the [Agent Skills standard](https://agentskills.io): Claude Code, Cursor, VS Code Copilot, OpenAI Codex, Gemini CLI, Goose, OpenCode, and about 25 more. One folder, no dependencies, MIT.
+## Languages
+
+In every language, the model writes the reply in the language of your message. It writes a document in the language of that document.
+
+| Language | What you get |
+|---|---|
+| English | The rules and the writing check of the original, with no change. |
+| Chinese | The rules in their Chinese form, and a writing check that counts Chinese sentences. |
+| Other languages | The rules that do not depend on English grammar, and a writing check with the sentence limit and the punctuation rules. |
+
+The fork was tested with Spanish, German, French, Italian, Portuguese, Russian, Japanese, and Korean. In each of them, the replies and the documents came back in the language of the request.
+
+The writing check does not apply the English word lists to these languages. It permits the dash in Russian and Ukrainian, where the dash is standard punctuation. The sentence limit counts words, so it does not count a language with no spaces between words, such as Japanese.
+
+Chinese has a form of its own because its sentences have no spaces and its punctuation is different. The other languages share one short set of rules, because the original rules fit them with little change.
+
+[`FORK.md`](FORK.md) gives the details.
 
 ## Install
 
-Any agent, with the [skills CLI](https://github.com/vercel-labs/skills):
+The fork was tested with Claude Code and with Codex. The hooks need Node.js and Python 3.
+
+Claude Code:
 
 ```bash
-npx skills add AminBlg/SimpleEnglish
+claude plugin marketplace add sigmaJYZ/SimpleWriting && claude plugin install simple-writing@simple-writing
 ```
 
-This installs the skill only. It does not install the session hook or the output style below, so setting `outputStyle` to `simple-english:simple-english` without the plugin does nothing. Use the Claude Code plugin for those.
+Start a new session after the install. The plugin loads the rules at the start of each session. You can also select the output style `simple-writing:simple-writing` with `/config`.
 
-Claude Code plugin, with the session hook and the output style:
+Codex:
 
 ```bash
-claude plugin marketplace add AminBlg/SimpleEnglish && claude plugin install simple-english@simple-english
+codex plugin marketplace add sigmaJYZ/SimpleWriting
+codex plugin add simple-writing@simple-writing
 ```
 
-The output style is named `simple-english:simple-english`. The short name does not resolve. Select it with `/config` under Output style, or put `{"outputStyle": "simple-english:simple-english"}` in `~/.claude/settings.json`.
+Codex asks you to trust the hooks before their first run. Open `/hooks` to approve them. In Codex, the plugin loads the rules at the start of each session. The writing check after each file edit runs in Claude Code only.
 
-Codex plugin, with the session hook:
+Do not keep the original SimpleEnglish plugin next to this one, because the rules then load two times. If you have the original, remove it first:
 
 ```bash
-codex plugin marketplace add AminBlg/SimpleEnglish
-codex plugin add simple-english@simple-english
+claude plugin marketplace remove simple-english   # Claude Code
+codex plugin marketplace remove simple-english    # Codex
 ```
 
-Codex asks you to trust the hook before its first run. The hooks need Node.js. Details in [`src/hooks/README.md`](src/hooks/README.md).
-
-No skill support? Paste the rule block of [`prompts/system-prompt.md`](prompts/system-prompt.md) into your system prompt, `AGENTS.md`, or `.cursorrules`. The page ends with a 60-token version for tight budgets.
-
-Then ask for any technical writing, or say "rewrite this with simple-english".
-
-## See it
-
-Left is real, unedited Claude output. Right is the same model with the skill loaded.
-
-<table>
-<tr>
-<th width="50%">Without skill</th>
-<th width="50%">With skill</th>
-</tr>
-<tr>
-<td valign="top">
-
-> Leveraging sqlpipe's robust architecture, users can seamlessly synchronize their Postgres tables to S3 with minimal configuration overhead. Before getting started, you should ensure that your AWS credentials have been properly configured — this is crucial for avoiding frustrating permission issues down the line.
-
-</td>
-<td valign="top">
-
-> sqlpipe copies your Postgres tables to S3. It needs one configuration file.
->
-> Before you start, make sure that your AWS credentials are correct. If they are not, S3 rejects the upload with a permission error.
-
-</td>
-</tr>
-</table>
-
-More rewrites in [`examples/before-after.md`](examples/before-after.md): READMEs, runbooks, incident reports, error messages, release notes.
-
-## Benchmarks
-
-Every number below is recomputed from the committed raw files by `python3 evals/check_numbers.py`, which CI runs on every push. All Claude runs: `claude-sonnet-4-6`, low effort, no settings loaded. Judges are Claude models on Claude text, so family bias is possible.
-
-Replies, 8 chat questions with a jargon term each, two runs, [raw files and tables](evals/results/rebuild-2026-09-02/RESULTS.md). Counts are totals over the 16 replies. **95% fewer visible defects** (em-dashes, bold, headers, bullets) with 2.0.1 than with no skill (218 → 11). These counts come from the 2026-09-02 runs of 2.0.1, which still had the five-sentence reply cap that 2.1.0 removed. No run exists yet for 2.1.0 or later. A blind judge preferred 2.0.1 over 2.0.0 in 14 of 16 pairs.
-
-| Condition | words | sentences | em-dashes | bold | headers | bullets |
-|---|---:|---:|---:|---:|---:|---:|
-| no skill | 216 | 16.8 | 62 | 79 | 25 | 52 |
-| 2.0.0 | 184 | 14.4 | 43 | 72 | 4 | 52 |
-| 2.0.1 | 146 | 7.9 | 5 | 2 | 0 | 4 |
-
-On gpt-4.1-mini the same 8 questions went from 23 sentences, 64 bold spans, and 101 bullets per 8 replies. With 2.0.1 they went to 5.2 sentences and zero formatting.
-
-Documents, the 8 sqlpipe writing tasks scored with the STE linter, one run per cell. One run moves by about 0.5 on this model, so read the rows as parity or better, not as a ranking.
-
-| Condition | viol/100w | Reduction |
-|---|---:|---:|
-| no skill | 4.09 | |
-| 1.3.0 | 2.11 | 48% |
-| 2.0.0 | 1.70 | 58% |
-| 2.0.1 | 0.91 | 78% |
-
-The linter history: 81.3% fewer linter violations across 9 Claude models (144 generations, [RESULTS.md](evals/results/RESULTS.md)), plus Pi, opencode, and OpenAI runs in [`evals/results/`](evals/results/). Those numbers reproduce. A [2026-09-02 audit](evals/results/WHY-USELESS-2026-09-02.md) showed that they measure rule obedience, not what a reader sees, which is why 2.0.1 reports the reply counts above.
-
-## The rules
-
-Two registers in [`SKILL.md`](skills/simple-english/SKILL.md), about 1,700 tokens. The 53 numbered rules of Issue 9 live in [`rule-catalog.md`](skills/simple-english/references/rule-catalog.md) for check mode and Strict mode.
-
-The reply, every chat answer:
-
-| Rule | What it kills |
-|---|---|
-| Prose only: no headers, bullets, bold, tables | The wall of formatting around a one-line answer |
-| First sentence answers | The preamble |
-| No em-dashes | The spliced half-thought |
-| Define a concept term in a few words | Jargon the reader has to look up |
-| No contractions, openers, or closers | "Great question!" and "Hope this helps!" |
-
-The document: docs, READMEs, runbooks, error messages, release notes:
-
-| Rule | What it kills |
-|---|---|
-| Max 20 words per instruction, 25 per description | The run-on sentence |
-| Condition before command | Trailing "...if the flag is set" that readers execute too late |
-| Simple tenses, active voice | "has been updated", ", making it easy to..." |
-| No should/would/may/might | Hedging. `can`, `will`, `must` survive |
-| One word = one meaning, whole document | check/verify/confirm/validate roulette |
-| Keep articles, keep "that" | Telegraph style. STE is short, not terse |
-| No bold lead-ins, no heading over two sentences | Decoration that hides the fact |
-| State the fact, not its importance | "crucial", "robust", "not just X, it is Y" |
-
-Two modes. Plain, the default, is all of the above. Strict adds the STE dictionary discipline from [`strict-vocabulary.md`](skills/simple-english/references/strict-vocabulary.md) when you name STE, ASD-STE100, or compliance. The reply stays Plain in every mode.
-
-## FAQ
-
-Does this make output STE-certified? No. Nothing does, because ASD certifies no tool. Strict mode gets close. Word-level rulings live in the official standard, a [free download](https://www.asd-ste100.org/request.html).
-
-Will my docs sound robotic? They will sound like Airbus manuals: flat and impossible to misread. For docs that is the whole point. Keep your voice for your blog.
-
-Why not just prompt "write clearly"? "Clearly" is an opinion. "No sentence over 20 words" is a spec. Agents follow specs.
-
-Why a 40-year-old aerospace standard? It is maintained (Issue 9, January 2025), numbered, and testable. It is also a near-perfect negative of every AI writing tell.
-
-How was it built? Against the primary Issue 9 text, not summaries. A community audit ([#4](https://github.com/AminBlg/SimpleEnglish/issues/4)) checked the vocabulary tables against the dictionary. Scenarios and recorded results: [`evals/pressure-tests.md`](evals/pressure-tests.md).
-
-## Star history
-
-[![Star History Chart](https://api.star-history.com/chart?repos=AminBlg/SimpleEnglish&type=date&legend=top-left)](https://www.star-history.com/?repos=AminBlg%2FSimpleEnglish&type=date&legend=top-left)
-
-## Word-choice linter
-
-`evals/ste_lint.py` measures the mechanical rules and cannot see word choice. [`tools/ste-dictionary/`](tools/ste-dictionary/README.md) holds an extractor that builds the word lists from your own copy of the free Issue 9 PDF. A linter reads them. The repository ships the tool and no dictionary content, because the standard forbids reproduction without written authority from ASD.
-
-## Contributing
-
-Open an issue for questions and bug reports. Pull requests are welcome. A change that moves a published number ships the raw files with it, and `python3 evals/check_numbers.py` must pass. Run `python3 evals/ste_lint.py --self-test` before you push. Say in the PR whether an agent wrote the code, and do not add attribution trailers.
+The language rules load from the plugin. A copy of the skill alone, for example from `npx skills add`, has the original English rules only.
 
 ## License
 
-MIT for everything here. The repo paraphrases the rules for teaching and reproduces no spec text or dictionary content. Unofficial project, not affiliated with or endorsed by ASD or STEMG. ASD-STE100 is a registered trademark of ASD.
+MIT, the same as the original. This project is unofficial. It has no connection with ASD or STEMG. ASD-STE100 is a registered trademark of ASD.

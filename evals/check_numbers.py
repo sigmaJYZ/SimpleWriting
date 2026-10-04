@@ -26,7 +26,7 @@ sys.path.insert(0, str(HERE))
 import ste_lint  # noqa: E402
 
 R = ROOT / "evals" / "results" / "rebuild-2026-09-02"
-README = (ROOT / "README.md").read_text(encoding="utf-8")
+README = (ROOT / "README.upstream.md").read_text(encoding="utf-8")
 SCEN = {s["id"]: s for s in json.loads((HERE / "scenarios.json").read_text())}
 problems = []
 

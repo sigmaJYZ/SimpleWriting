@@ -2,6 +2,27 @@
 
 Each entry names the version, the date, and the measured effect where one exists.
 
+## 2.1.1.4, 2026-10-04
+
+- Changed: the repository has the name SimpleWriting, and the marketplace
+  and the plugin have the name `simple-writing`. The install command is
+  `claude plugin install simple-writing@simple-writing`. An install of an
+  earlier release must move: remove the marketplace `simple-english`, then
+  add the repository again.
+- Added: the output style `simple-writing:simple-writing`. It holds the
+  upstream rule block and then the layer.
+- Changed: the README of the fork is `README.md` in the root folder, with
+  `README.zh-CN.md` for Chinese. The README of the original has the name
+  `README.upstream.md`.
+- Fixed: the reply check reported the dash in a Russian reply. A Cyrillic
+  reply keeps its dashes now, the same as a Cyrillic document.
+- Changed: in the layer, the note on the Russian and Ukrainian dash applies
+  to replies and to documents. No benchmark ran on this text. The published
+  results describe the layer of 2.1.1.3.
+- Changed: the message of the file check says "hit(s)".
+- Added: the Codex install commands in the README, after one run in a Codex
+  session.
+
 ## 2.1.1.3, 2026-10-04
 
 - Fixed: the Chinese check was slow on a large file. A file of 1 MB with a

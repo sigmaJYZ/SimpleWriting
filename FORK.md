@@ -2,7 +2,7 @@
 
 This repository, SimpleWriting, is a fork of [AminBlg/SimpleEnglish](https://github.com/AminBlg/SimpleEnglish). The fork makes the upstream rules and checks work for Chinese text. It also stops false hits on text in other languages. The fork takes upstream releases, and it sends nothing back to upstream.
 
-The plugin, the skill, and the output style keep the upstream name `simple-english`. With that name, the fork replaces the original plugin, and a merge of an upstream release stays small.
+The marketplace and the plugin have the name `simple-writing`, and the plugin has an output style of the same name. The skill, the upstream output style, the hook scripts, and the hook messages keep the upstream name `simple-english`. A merge of an upstream release stays small that way.
 
 Upstream owns the files that it ships. The fork keeps its work in files of its own, so that a merge of an upstream release has few conflicts.
 
@@ -12,17 +12,20 @@ Upstream owns the files that it ships. The fork keeps its work in files of its o
 |---|---|
 | `prompts/language-layer.md` | The language layer: the form of the upstream rules in other languages. |
 | `src/hooks/language-layer.js` | A second `SessionStart` hook. It prints the layer after the upstream rule block. |
+| `output-styles/simple-writing.md` | The output style of the fork: the upstream rule block, then the layer. `node src/hooks/build-style.js` writes it. |
 | `evals/lang_lint.py` | The language gate and the Chinese checks. |
 | `src/hooks/lint_hook_fork.py` | The entry point of the `PostToolUse` hook and the `Stop` hook. |
 | `evals/run_layer_bench.py` | The benchmark of the layer. The Chinese questions are in `evals/reply_scenarios_zh.json` and `evals/scenarios_zh.json`. |
 | `evals/calibrate_zh.py` | The source of the Chinese sentence limits. |
 | `.github/workflows/check-fork.yml` | The tests of the fork. |
-| `.github/README.md` | The short README of the fork. GitHub shows a README in `.github` before the one in the root folder, so the upstream `README.md` stays in place. |
-| `.github/README.zh-CN.md` | The same README in Chinese. Each of the two files starts with a link to the other one. |
+| `README.md`, `README.zh-CN.md` | The README of the fork, in English and in Chinese. Each file starts with a link to the other one. |
+| `README.upstream.md` | The README of the original. `evals/check_numbers.py` reads the published numbers and the version badge from it. |
 
 The fork changes these upstream files:
 
-- `.claude-plugin/plugin.json` and `.codex-plugin/hooks.json`: the hook commands.
+- `README.md`: the fork has its own README at this path. The upstream README has the name `README.upstream.md`.
+- `evals/check_numbers.py`: one line, the path of the README that holds the published numbers.
+- The five manifest files: the names `simple-writing` and `Simple Writing`, the hook commands, and the status messages.
 - The five places that hold the version. See "Version".
 - `CHANGELOG.md`: one entry for each release of the fork.
 - `evals/ste_lint.py` and `src/hooks/test_lint_hook.py`: the sentence split at `。`, `！`, and `？` from release 2.1.2.
@@ -59,7 +62,7 @@ For other languages, the layer gives one short paragraph. It names no word lists
 | Russian and other Cyrillic text | Sentence length in words, and semicolons. The dash is standard punctuation in Russian. |
 | Any other language | Sentence length in words, semicolons, and dashes. |
 
-The fork adds no check of its own. Each Chinese check is an upstream check that has a Chinese form. The reply check is also the upstream check: dashes, bold, headers, list items, filler words, openers, and closers. The fork adds the Chinese openers, closers, and filler words to it.
+The fork adds no check of its own. Each Chinese check is an upstream check that has a Chinese form. The reply check is also the upstream check: dashes, bold, headers, list items, filler words, openers, and closers. The fork adds the Chinese openers, closers, and filler words to it. A Cyrillic reply keeps its dashes.
 
 The English word lists do not run on other languages, because they hit normal words there. Examples are `utilizzare` in Italian, `utilizar` and `realmente` in Spanish, and `navigateur` in French.
 
@@ -89,21 +92,24 @@ The descriptive limit is the measured value. The procedural limit rounds 32 up t
 
 ## Version
 
-The version of the fork is the upstream version plus one part for the fork revision. For example, `2.1.1.3` is revision 3 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
+The version of the fork is the upstream version plus one part for the fork revision. For example, `2.1.1.4` is revision 4 on upstream `2.1.1`. Revision 1 had the name `2.1.2`, which an upstream release can also take.
 
-When the version string changes, Claude Code installs a new copy of the plugin. It installs nothing for an equal string. Change the version for each release of the fork. Five places hold it: `skills/simple-english/SKILL.md`, the three manifests, and the README badge. If they differ, `python3 evals/check_numbers.py` fails.
+When the version string changes, Claude Code installs a new copy of the plugin. It installs nothing for an equal string. Change the version for each release of the fork. Five places hold it: `skills/simple-english/SKILL.md`, the three manifests, and the badge in `README.upstream.md`. If they differ, `python3 evals/check_numbers.py` fails.
 
 ## Take an upstream release
 
 1. Get the release: `git fetch upstream`, then `git merge upstream/main`.
-2. For each version conflict, take the upstream version and add `.1`.
-3. Read the upstream changes to `prompts/system-prompt.md`. If a rule changed, change `prompts/language-layer.md` to agree with it.
-4. Run the upstream tests and the tests of the fork. The two workflow files in `.github/workflows/` list the commands.
-5. Add an entry to `CHANGELOG.md`, then push.
+2. Git reports a conflict in `README.md`, because the fork has its own README there. Keep the README of the fork: `git checkout --ours README.md`.
+3. Take the new upstream README: `git show upstream/main:README.md > README.upstream.md`.
+4. For each version conflict, take the upstream version and add `.1`. Put the same version on the badge in `README.upstream.md`. In a manifest, keep the names of the fork.
+5. Read the upstream changes to `prompts/system-prompt.md`. If a rule changed, change `prompts/language-layer.md` to agree with it. Then run `node src/hooks/build-style.js`.
+6. Run the upstream tests and the tests of the fork. The two workflow files in `.github/workflows/` list the commands.
+7. Add an entry to `CHANGELOG.md`, then push.
 
 ## Limits
 
 - Four upstream checks have a Chinese form. The checks for contractions, the present perfect, and the "-ing" verb have none. The checks for modals, trailing conditions, and word rotation need the sense of a word, so the fork does not port them.
 - The language gate knows English, Chinese, and Cyrillic text. Every other language gets the same three checks.
-- The benchmark ran on one model at low effort.
+- The benchmark ran on one model at low effort. Only English and Chinese have a benchmark in the repository.
+- Spanish, German, French, Italian, Portuguese, Russian, Japanese, and Korean had a small test: four questions and two writing tasks in each language. The outputs are not in the repository.
 - The Codex path ran in one session of Codex 0.160.0. The two session hooks ran, and the model had the rules and the layer in its context. Codex runs the session hooks only, so the writing check after a file edit is for Claude Code.

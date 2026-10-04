@@ -1,6 +1,6 @@
 {
-  "name": "simple-english",
-  "version": "2.1.1.3",
+  "name": "simple-writing",
+  "version": "2.1.1.4",
   "description": "Write plain, layman-readable English with the discipline of ASD-STE100 Simplified Technical English: short sentences, one word one meaning, active voice, condition before command, terms defined at first use.",
   "author": {
     "name": "AminBlg"
@@ -17,7 +17,7 @@
   "skills": "./skills/",
   "hooks": "./.codex-plugin/hooks.json",
   "interface": {
-    "displayName": "Simple English",
+    "displayName": "Simple Writing",
     "shortDescription": "Write clear technical text with ASD-STE100 rules.",
     "longDescription": "Load Simplified Technical English rules automatically for documentation, procedures, error messages, runbooks, release notes, and incident reports.",
     "developerName": "AminBlg",

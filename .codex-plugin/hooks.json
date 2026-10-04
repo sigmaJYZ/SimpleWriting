@@ -9,7 +9,7 @@
             "type": "command",
             "command": "[ -n \"${PLUGIN_ROOT}\" ] && node \"${PLUGIN_ROOT}/src/hooks/simple-english-activate.js\" || true",
             "timeout": 5,
-            "statusMessage": "Loading Simple English...",
+            "statusMessage": "Loading Simple Writing...",
             "additionalContextLimit": 0
           },
           {

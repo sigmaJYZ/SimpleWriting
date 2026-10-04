@@ -1,5 +1,5 @@
 {
-  "name": "simple-english",
+  "name": "simple-writing",
   "owner": {
     "name": "AminBlg",
     "url": "https://github.com/AminBlg"
@@ -7,11 +7,11 @@
   "description": "ASD-STE100 Simplified Technical English skill for clear, unambiguous technical writing.",
   "plugins": [
     {
-      "name": "simple-english",
+      "name": "simple-writing",
       "source": "./",
-      "displayName": "Simple English",
+      "displayName": "Simple Writing",
       "description": "Write plain, layman-readable English with the discipline of ASD-STE100 Simplified Technical English: short sentences, one word one meaning, active voice, condition before command, terms defined at first use.",
-      "version": "2.1.1.3",
+      "version": "2.1.1.4",
       "author": {
         "name": "AminBlg"
       },

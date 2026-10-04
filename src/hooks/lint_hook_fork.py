@@ -62,7 +62,7 @@ def post_tool_use(event):
     detail = lang_lint.lint_detail(written, "descriptive", lang)
     if not detail:
         return 0
-    lines = [f"simple-english: {target.name} has {len(detail)} writing hits ({lang})."]
+    lines = [f"simple-english: {target.name} has {len(detail)} writing hit(s) ({lang})."]
     for h in detail[:upstream.MAX_HOOK_HITS]:
         lines.append(f"  line {h['line'] + first_line - 1}, {h['category']}: {h['text']}")
     if len(detail) > upstream.MAX_HOOK_HITS:

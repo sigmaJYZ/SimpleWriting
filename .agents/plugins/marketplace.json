@@ -1,11 +1,11 @@
 {
-  "name": "simple-english",
+  "name": "simple-writing",
   "interface": {
-    "displayName": "Simple English"
+    "displayName": "Simple Writing"
   },
   "plugins": [
     {
-      "name": "simple-english",
+      "name": "simple-writing",
       "source": {
         "source": "local",
         "path": "./"

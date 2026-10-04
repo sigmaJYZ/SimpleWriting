@@ -189,8 +189,12 @@ def lint_detail(text, text_type, lang=None):
 
 
 def reader_check(text):
-    """ste_lint.reader_check, with the two-character Chinese dash counted as one dash."""
-    return ste_lint.reader_check(text.replace("——", "—"))
+    """ste_lint.reader_check for a reply. The two-character Chinese dash is one dash, and a Cyrillic text keeps its dashes."""
+    report = ste_lint.reader_check(text.replace("——", "—"))
+    if language(text) == "cyrillic":
+        report["visible_total"] -= report["counts"]["em_dash"]
+        report["counts"]["em_dash"] = 0
+    return report
 
 
 ZH_BAD = """值得注意的是，通过利用 sqlpipe 的架构，用户可以把 Postgres 表同步到 S3——这对于避免后续出现的权限问题至关重要；在开始之前，你应该对 AWS 凭证进行检查。
@@ -234,6 +238,7 @@ def self_test():
     assert lint_detail("第一行很短。\n\n" + "词" * 50 + "。\n", "descriptive") == [
         {"category": "sentence_over_limit", "text": "词" * 50 + "。", "line": 3}]
     assert reader_check("好——就这样。")["counts"]["em_dash"] == 1
+    assert ste_lint.reader_check(RU_CLEAN)["visible_total"] == 2 and reader_check(RU_CLEAN)["visible_total"] == 0
     # English text takes the upstream path, byte for byte.
     assert language(ste_lint.SLOP_FIXTURE) == "en" and language("Run it.") == "en"
     for fixture in (ste_lint.SLOP_FIXTURE, ste_lint.CLEAN_FIXTURE, ste_lint.DASH_FIXTURE):
